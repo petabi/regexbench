@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     dbFile = "database=" + dbFile;
     PcreCheckDb db("sqlite3", dbFile);
     // create tables, sequences and indexes
-    db.verbose = true;
+    //db.verbose = true;
 
     if (db.needsUpgrade()) {
       db.upgrade();
