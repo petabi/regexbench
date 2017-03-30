@@ -5,30 +5,13 @@
 #include <map>
 
 #include <jsoncpp/json/json.h>
-#include <litesql.hpp>
-#include "pcrecheckdb.hpp"
+#include "db_setup.h"
 
 // std namespace aliases
 using std::cout;
 using std::cerr;
 using std::endl;
-
-// pcre_check namespace aliases
-using PcreCheckDb = pcre_check::PcreCheckDb;
-using Rule = pcre_check::Rule;
-using Pattern = pcre_check::Pattern;
-using Grammar = pcre_check::Grammar;
-using Engine = pcre_check::Engine;
-using Result = pcre_check::Result;
-using Test = pcre_check::Test;
-using TestGrammar = pcre_check::TestGrammar;
-using TestResult = pcre_check::TestResult;
-
-// litesql namespace aliases
-using litesql::select;
-using Blob = litesql::Blob;
-using Except = litesql::Except;
-using NotFound = litesql::NotFound;
+using std::string;
 
 static void usage()
 {
@@ -38,7 +21,7 @@ static void usage()
 }
 
 static template <typename T>
-void parseNameList(PcreCheckDb& db, const std::string& member, const Json::Value&);
+void parseNameList(PcreCheckDb& db, const string& member, const Json::Value&);
 
 static void parseRules(PcreCheckDb& db, const Json::Value&);
 static void parseGrammars(PcreCheckDb& db, const Json::Value&);
@@ -52,7 +35,7 @@ int main(int argc, char **argv) {
   }
 
   std::ifstream jsonFile(argv[1]);
-  std::string dbFile(argv[2]);
+  string dbFile(argv[2]);
 
   // Parse json file
   Json::Value root;
@@ -114,7 +97,7 @@ int main(int argc, char **argv) {
 
 // currently engines, results
 template <typename T>
-void parseNameList(PcreCheckDb& db, const std::string& member,
+void parseNameList(PcreCheckDb& db, const string& member,
                    const Json::Value& root)
 {
   if (root[member].empty() || !root[member].isArray())
@@ -233,8 +216,8 @@ void parseTests(PcreCheckDb& db, const Json::Value& tests)
     throw std::runtime_error("tests should be array type");
   }
 
-  std::map<std::string, int> engineMap;
-  std::map<std::string, int> resultMap;
+  std::map<string, int> engineMap;
+  std::map<string, int> resultMap;
 
   std::vector<Engine> engineSels = select<Engine>(db).all();
   for (const auto &e : engineSels) {
@@ -317,7 +300,7 @@ void parseTests(PcreCheckDb& db, const Json::Value& tests)
       }
     }
 
-    std::map<std::string, std::string> verdictMap;
+    std::map<string, string> verdictMap;
     if (!test["result"].empty() && test["result"].isObject()) {
       const auto& result = test["result"];
       for (const auto& engine : result.getMemberNames()) {
@@ -338,11 +321,6 @@ void parseTests(PcreCheckDb& db, const Json::Value& tests)
 
     for (auto e2V : verdictMap) {
       try {
-        //litesql::Cursor<TestResult> cur =
-        //    select<TestResult>(db,
-        //                       TestResult::Testid == test_id &&
-        //                           TestResult::Engineid == engineMap[e2V.first])
-        //        .cursor();
         auto resEntry =
             *(select<TestResult>(db, TestResult::Testid == test_id &&
                                          TestResult::Engineid ==
