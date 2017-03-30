@@ -39,3 +39,5 @@ endif()
 if(RE2_LIB)
   target_link_libraries(regexbench ${RE2_LIB})
 endif()
+
+add_subdirectory(pcre_check)

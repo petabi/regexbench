@@ -1,0 +1,29 @@
+{
+  "rules": [
+    {"name": "basic-1", "content": "/abc/"},
+    {"name": "basic-2", "content": "/def/"},
+    {"name": "adv-1", "content": "/(ab)+/"}
+  ],
+
+  "grammars": [
+    {"name": "basic"},
+    {"name": "adv"}
+  ],
+
+  "patterns": [
+    {"name": "pattern-1", "content": "abc"},
+    {"name": "pattern-2", "content": "def"}
+  ],
+
+  "engines" : ["pcre", "rematch", "hyperscan"],
+  "results" : ["match", "nomatch", "error"],
+
+  "tests" : [
+    {"rule": "basic-1", "pattern": "pattern-1", "grammars" : ["basic"],
+      "result": {"pcre": "match", "rematch": "match", "hyperscan": "match"}},
+    {"rule": "basic-2", "pattern": "pattern-2", "grammars" : ["basic"],
+      "result": {"pcre": "match", "rematch": "match", "hyperscan": "match"}},
+    {"rule": "adv-1", "pattern": "pattern-1", "grammars" : ["adv"],
+      "result": {"pcre": "nomatch", "rematch": "nomatch", "hyperscan": "nomatch"}}
+  ]
+}

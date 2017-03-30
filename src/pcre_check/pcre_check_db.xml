@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<!DOCTYPE database SYSTEM "litesql.dtd"> 
+<database name="PcreCheckDb" namespace="pcre_check">
+
+  <object name="Rule">
+    <field name="name" type="string" length="32" indexed="true"/>
+    <field name="content" type="blob"/>
+    <field name="desc" type="string" length="2048"/>
+  </object>
+
+  <object name="Grammar">
+    <field name="name" type="string" length="32" indexed="true"/>
+    <field name="desc" type="string" length="2048"/>
+  </object>
+
+  <object name="Pattern">
+    <field name="name" type="string" length="32" indexed="true"/>
+    <field name="content" type="blob"/>
+    <field name="desc" type="string" length="2048"/>
+  </object>
+
+  <object name="Engine">
+    <field name="name" type="string" length="32"/>
+  </object>
+
+  <object name="Result">
+    <field name="name" type="string" length="32"/>
+  </object>
+
+  <!-- relation of Rule & Patern -->
+  <!-- TODO : no clear way to specify foreign key -->
+  <object name="Test">
+    <field name="ruleid" type="integer"/>
+    <field name="patternid" type="integer"/>
+  </object>
+
+  <!-- relation of Test & Grammar -->
+  <!-- TODO : no clear way to specify foreign key -->
+  <object name="TestGrammar">
+    <field name="testid" type="integer"/>
+    <field name="grammarid" type="integer"/>
+  </object>
+
+  <!-- relation of Test & Engine & Result -->
+  <!-- TODO : no clear way to specify foreign key -->
+  <object name="TestResult">
+    <field name="testid" type="integer"/>
+    <field name="engineid" type="integer"/>
+    <field name="resultid" type="integer"/>
+    <field name="desc" type="string" length="2048"/>
+    <index unique="true">
+      <indexfield name="testid"/>
+      <indexfield name="engineid"/>
+    </index>
+  </object>
+
+</database>
