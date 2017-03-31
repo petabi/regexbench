@@ -20,7 +20,7 @@ static void usage()
   cerr << "$ db_setup {json_file} {db_file}" << endl;
 }
 
-static template <typename T>
+template <typename T>
 void parseNameList(PcreCheckDb& db, const string& member, const Json::Value&);
 
 static void parseRules(PcreCheckDb& db, const Json::Value&);
@@ -133,9 +133,9 @@ void parseRules(PcreCheckDb& db, const Json::Value& rules)
       throw std::runtime_error("rule content must be specfied (as string)");
     const auto &content = rule["content"].asString();
 
-    Rule rule_db(db);
+    DbRule rule_db(db);
     try {
-      select<Rule>(db, Rule::Name == name).one();
+      select<DbRule>(db, DbRule::Name == name).one();
       cerr << "rule entry with name " << name
            << " already exists in DB (skipping this)" << endl;
       continue;
@@ -228,7 +228,7 @@ void parseTests(PcreCheckDb& db, const Json::Value& tests)
     resultMap[r.name.value()] = r.id.value();
   }
 
-  // rule => Rule name
+  // rule => DbRule name
   // pattern => Pattern name
   // grammars => array of Grammar names
   // result => json object of result for each engine
@@ -244,7 +244,7 @@ void parseTests(PcreCheckDb& db, const Json::Value& tests)
     int rule_id;
     int pattern_id;
     try {
-      const auto& rule_db = select<Rule>(db, Rule::Name == rulename).one();
+      const auto& rule_db = select<DbRule>(db, DbRule::Name == rulename).one();
       rule_id = rule_db.id.value();
       const auto& pattern_db = select<Pattern>(db, Pattern::Name == patternname).one();
       pattern_id = pattern_db.id.value();

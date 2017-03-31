@@ -6,7 +6,7 @@
 
 // pcre_check namespace aliases
 using pcre_check::PcreCheckDb;
-using pcre_check::Rule;
+using DbRule = pcre_check::Rule;
 using pcre_check::Pattern;
 using pcre_check::Grammar;
 using pcre_check::Engine;
