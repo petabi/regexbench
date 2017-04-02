@@ -32,6 +32,8 @@
   <object name="Test">
     <field name="ruleid" type="integer"/>
     <field name="patternid" type="integer"/>
+    <!-- this is actually a result id -->
+    <field name="expectid" type="integer"/>
   </object>
 
   <!-- relation of Test & Grammar -->

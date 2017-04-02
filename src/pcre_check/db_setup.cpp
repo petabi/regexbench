@@ -253,7 +253,14 @@ void parseTests(PcreCheckDb& db, const Json::Value& tests)
            << ") not found (" << e << ") (skipping this)" << endl;
       continue;
     }
-    // now rule_id and pattern_id are valid
+    // find expect id : this is actually a result id
+    int expect_id = 0;
+    if (!test["expect"].empty() && test["expect"].isString()) {
+      if (resultMap.count(test["expect"].asString()))
+        expect_id = resultMap.at(test["expect"].asString());
+    }
+
+    // now rule_id, pattern_id, expect_id are valid
     // find out Test table id if any or create one
     int test_id;
     try {
@@ -265,6 +272,7 @@ void parseTests(PcreCheckDb& db, const Json::Value& tests)
       Test test_db(db);
       test_db.ruleid = rule_id;
       test_db.patternid = pattern_id;
+      test_db.expectid = expect_id;
       test_db.update();
       test_id = test_db.id.value();
     }

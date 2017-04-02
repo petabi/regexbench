@@ -20,8 +20,10 @@
 
   "tests" : [
     {"rule": "basic-1", "pattern": "pattern-1", "grammars" : ["basic"],
+      "expect": "match",
       "result": {"pcre": "match", "rematch": "match", "hyperscan": "match"}},
     {"rule": "basic-2", "pattern": "pattern-2", "grammars" : ["basic"],
+      "expect": "match",
       "result": {"pcre": "match", "rematch": "match", "hyperscan": "match"}},
     {"rule": "adv-1", "pattern": "pattern-1", "grammars" : ["adv"],
       "result": {"pcre": "nomatch", "rematch": "nomatch", "hyperscan": "nomatch"}}
