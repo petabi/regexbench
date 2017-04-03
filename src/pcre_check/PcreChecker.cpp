@@ -4,11 +4,13 @@
 #include <vector>
 #include <utility>
 
+#include <hs/hs_compile.h>
+#include <hs/hs_runtime.h>
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #include <rematch/compile.h>
 #include <rematch/execute.h>
 #include <rematch/rematch.h>
-#include <hs/hs_compile.h>
-#include <hs/hs_runtime.h>
 
 #include "db_setup.h"
 #include "../Rule.h"
@@ -40,7 +42,7 @@ struct AuxInfo {
 
 static void checkRematch(PcreCheckDb& db, const struct AuxInfo& aux);
 static void checkHyperscan(PcreCheckDb& db, struct AuxInfo& aux);
-//static void checkPcre(PcreCheckDb& db, struct AuxInfo& aux);
+static void checkPcre(PcreCheckDb& db, struct AuxInfo& aux);
 
 int main(int argc, char **argv)
 {
@@ -92,6 +94,7 @@ int main(int argc, char **argv)
 
     checkRematch(db, aux);
     checkHyperscan(db, aux);
+    checkPcre(db, aux);
 
     db.commit(); // commit changes (mostly about result)
 
@@ -298,10 +301,8 @@ void checkHyperscan(PcreCheckDb& db, struct AuxInfo& aux)
       size_t nmatches = 0;
       hs_scan(hsDb, temp.get(), static_cast<unsigned>(len), 0, hsScratch,
               hsOnMatch, &nmatches);
-      if (nmatches)
-        test2ResMap[(*cur).id.value()] =
-            (nmatches > 0) ? resMatchId : resNomatchId;
-
+      test2ResMap[(*cur).id.value()] =
+          (nmatches > 0) ? resMatchId : resNomatchId;
     }
 
     hs_free_scratch(hsScratch);
@@ -332,3 +333,89 @@ void checkHyperscan(PcreCheckDb& db, struct AuxInfo& aux)
   }
 }
 
+void checkPcre(PcreCheckDb& db, struct AuxInfo& aux)
+{
+  int engineId = aux.str2EngineId.at("pcre");
+  int resMatchId = aux.resMatchId;
+  int resNomatchId = aux.resNomatchId;
+  int resErrorId = aux.resErrorId;
+  const auto& rules = aux.rules;
+
+  auto cur = select<Test>(db).orderBy(Test::Ruleid).cursor();
+  if (!cur.rowsLeft()) // nothing to do
+    return;
+
+  // map of Test-id to Result-id
+  std::map<int, int> test2ResMap;
+
+  // Entering into this loop, please make sure that
+  // rules and cur are all sorted w.r.t rule id
+  // (only, cur can have multiple occurrences of rule id's)
+  // and also rules be super set of the iteration cur points to
+  // in terms of containing rule id's.
+  // Below outer and inner loop is assuming the above constraints
+  // to prevent multiple rule compile for a same rule
+  for (const auto& rule : rules) {
+    if (!cur.rowsLeft())
+      break;
+    if (rule.getID() != (*cur).ruleid.value())
+      continue;
+
+    PCRE2_SIZE erroffset = 0;
+    int errcode = 0;
+    pcre2_code* re =
+        pcre2_compile(reinterpret_cast<PCRE2_SPTR>(rule.getRegexp().data()),
+                      PCRE2_ZERO_TERMINATED, rule.getPCRE2Options(), &errcode,
+                      &erroffset, nullptr);
+    pcre2_match_data* mdata = nullptr;
+    if (re != nullptr) {
+      mdata = pcre2_match_data_create_from_pattern(re, nullptr);
+    }
+
+    for (; cur.rowsLeft() && rule.getID() == (*cur).ruleid.value(); cur++) {
+
+      if (re == nullptr) {
+        test2ResMap[(*cur).id.value()] = resErrorId;
+        continue;
+      }
+
+      const auto& pattern =
+          select<Pattern>(db, Pattern::Id == (*cur).patternid).one();
+      auto blob = pattern.content.value();
+      size_t len = blob.length();
+      auto temp = std::make_unique<char[]>(len);
+      blob.getData(reinterpret_cast<unsigned char*>(temp.get()), len, 0);
+
+      int rc =
+          pcre2_match(re, reinterpret_cast<PCRE2_SPTR>(temp.get()), len, 0,
+                      PCRE2_NOTEMPTY_ATSTART | PCRE2_NOTEMPTY, mdata, nullptr);
+
+      test2ResMap[(*cur).id.value()] = (rc >= 0) ? resMatchId : resNomatchId;
+    }
+
+    pcre2_code_free(re);
+    pcre2_match_data_free(mdata);
+  }
+
+  cout << "PCRE match result" << endl << endl;
+  for (const auto& p : test2ResMap) {
+    try {
+      auto curT = select<TestResult>(db, TestResult::Testid == p.first &&
+                                            TestResult::Engineid == engineId)
+                     .cursor();
+      (*curT).resultid = p.second;
+      (*curT).update();
+    } catch (NotFound) {
+      TestResult res(db);
+      res.testid = p.first;
+      res.engineid = engineId;
+      res.resultid = p.second;
+      res.update();
+    }
+    // for debugging
+    const auto& test = select<Test>(db, Test::Id == p.first).one();
+    cout << "test " << test.id.value() << " (rule id " << test.ruleid.value()
+         << ", pattern id " << test.patternid.value()
+         << ") => result : " << p.second << endl;
+  }
+}
