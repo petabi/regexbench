@@ -1,0 +1,72 @@
+{
+  "rules": [
+    {"name": "basic-1", "content": "/abc/"},
+    {"name": "basic-2", "content": "/def/"},
+    {"name": "quantifier-greedy1", "content": "/(abc)+def/"},
+    {"name": "quantifier-greedy2", "content": "/(abc)+...def/"},
+    {"name": "quantifier-lazy1", "content": "/(abc)+?...def/"},
+    {"name": "atomic-group1", "content": "/(?>\\d+)foo/"},
+    {"name": "atomic-group2", "content": "/(?>(abc)+)...def/"},
+    {"name": "possessive-group1", "content": "/(abc)++...def/"},
+    {"name": "recursion_paren", "content": "/\\(([^()]+|(?R))*\\)/"}
+  ],
+
+  "grammars": [
+    {"name": "basic"}
+  ],
+
+  "patterns": [
+    {"name": "basic-1", "content": "abc"},
+    {"name": "basic-2", "content": "def"},
+    {"name": "quantifier-greedy_lazy1", "content": "abcabcdef"},
+    {"name": "quantifier-greedy_lazy2", "content": "abcdefdef"},
+    {"name": "quantifier-greedy_lazy3", "content": "abcabcdegdef"},
+    {"name": "atomic-group1", "content": "123456foo"},
+    {"name": "recursion_paren", "content": "(((abcde)))"}
+  ],
+
+  "engines" : ["pcre", "rematch", "hyperscan"],
+  "results" : ["match", "nomatch", "error"],
+
+  "tests" : [
+    {"rule": "basic-1",
+     "pattern": "basic-1",
+     "grammars" : ["basic"], "expect": "match"},
+    {"rule": "basic-2",
+     "pattern": "basic-2",
+     "grammars" : ["basic"], "expect": "match"},
+    {"rule": "quantifier-greedy1",
+     "pattern": "quantifier-greedy_lazy1",
+     "grammars" : ["quantifier-plus_greedy"], "expect": "match"},
+    {"rule": "quantifier-greedy2",
+     "pattern": "quantifier-greedy_lazy1",
+     "grammars" : ["quantifier-plus_greedy"], "expect": "match"},
+    {"rule": "quantifier-greedy2",
+     "pattern": "quantifier-greedy_lazy2",
+     "grammars" : ["quantifier-plus_greedy"], "expect": "match"},
+    {"rule": "quantifier-greedy2",
+     "pattern": "quantifier-greedy_lazy3",
+     "grammars" : ["quantifier-plus_greedy"], "expect": "match"},
+    {"rule": "quantifier-lazy1",
+     "pattern": "quantifier-greedy_lazy1",
+     "grammars" : ["quantifier-plus_lazy"], "expect": "match"},
+    {"rule": "quantifier-lazy1",
+     "pattern": "quantifier-greedy_lazy2",
+     "grammars" : ["quantifier-plus_lazy"], "expect": "match"},
+    {"rule": "quantifier-lazy1",
+     "pattern": "quantifier-greedy_lazy3",
+     "grammars" : ["quantifier-plus_greedy"], "expect": "match"},
+    {"rule": "atomic-group1",
+     "pattern": "atomic-group1",
+     "grammars" : ["atomic-noncapture"], "expect": "match"},
+    {"rule": "atomic-group2",
+     "pattern": "quantifier-greedy_lazy1",
+     "grammars" : ["atomic-noncapture", "quantifier-plus_greedy"], "expect": "nomatch"},
+    {"rule": "possessive-group1",
+     "pattern": "quantifier-greedy_lazy1",
+     "grammars" : ["atomic-noncapture", "quantifier-plus_greedy"], "expect": "nomatch"},
+    {"rule": "recursion_paren",
+     "pattern": "recursion_paren",
+     "grammars" : ["subr-whole"], "expect": "match"}
+  ]
+}
