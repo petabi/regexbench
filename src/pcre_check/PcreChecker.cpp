@@ -397,7 +397,7 @@ void checkPcre(PcreCheckDb& db, struct AuxInfo& aux)
     pcre2_match_data_free(mdata);
   }
 
-  cout << "PCRE match result" << endl << endl;
+  //cout << "PCRE match result" << endl << endl;
   for (const auto& p : test2ResMap) {
     try {
       auto curT = select<TestResult>(db, TestResult::Testid == p.first &&
@@ -413,9 +413,9 @@ void checkPcre(PcreCheckDb& db, struct AuxInfo& aux)
       res.update();
     }
     // for debugging
-    const auto& test = select<Test>(db, Test::Id == p.first).one();
-    cout << "test " << test.id.value() << " (rule id " << test.ruleid.value()
-         << ", pattern id " << test.patternid.value()
-         << ") => result : " << p.second << endl;
+    //const auto& test = select<Test>(db, Test::Id == p.first).one();
+    //cout << "test " << test.id.value() << " (rule id " << test.ruleid.value()
+    //     << ", pattern id " << test.patternid.value()
+    //     << ") => result : " << p.second << endl;
   }
 }
