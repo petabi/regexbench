@@ -14,6 +14,7 @@
 
 #include "db_setup.h"
 #include "../Rule.h"
+#include "CheckerShell.h"
 
 using std::cout;
 using std::cerr;
@@ -27,7 +28,12 @@ static void usage()
 {
   cerr << "arguments too few" << endl;
   cerr << "command line should look like :" << endl;
+  cerr << endl;
+  cerr << "for direct result update ..." << endl;
   cerr << "$ pcre_checker {db_file}" << endl;
+  cerr << endl;
+  cerr << "for shell access ..." << endl;
+  cerr << "$ pcre_checker -s" << endl;
 }
 
 struct AuxInfo {
@@ -44,6 +50,8 @@ static void checkRematch(PcreCheckDb& db, const struct AuxInfo& aux);
 static void checkHyperscan(PcreCheckDb& db, struct AuxInfo& aux);
 static void checkPcre(PcreCheckDb& db, struct AuxInfo& aux);
 
+static int runShell();
+
 int main(int argc, char **argv)
 {
   if (argc < 2) {
@@ -51,7 +59,14 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  string dbFile(argv[1]);
+  string arg(argv[1]);
+
+  if (arg == "-s")
+    return runShell(); // Enter shell mode
+
+  // Now direct result update based on the existing database content
+
+  string dbFile(arg);
 
   try {
     dbFile = "database=" + dbFile;
@@ -418,4 +433,18 @@ void checkPcre(PcreCheckDb& db, struct AuxInfo& aux)
     //     << ", pattern id " << test.patternid.value()
     //     << ") => result : " << p.second << endl;
   }
+}
+
+int runShell()
+{
+  try {
+    CheckerShell shell;
+    shell.initialize();
+    shell.run();
+  } catch (const std::exception &ex) {
+    cerr << ex.what() << endl;
+    return -1;
+  }
+
+  return 0;
 }
