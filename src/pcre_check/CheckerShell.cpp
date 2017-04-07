@@ -1,5 +1,5 @@
 #include <cstdlib>
-
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <sstream>
@@ -7,6 +7,9 @@
 
 #include <fcntl.h>
 
+#include <jsoncpp/json/json.h>
+
+#include "PcreChecker.h"
 #include "CheckerShell.h"
 
 using std::cout;
@@ -219,6 +222,9 @@ template <> void CS::processCmd(CS::cmd_attach_option &opt) {
   dbName = opt[id::db](); // should be string
   try {
     pDb.reset(new PcreCheckDb("sqlite3", "database=" + dbName));
+    if (pDb->needsUpgrade()) // TODO : revisit!!
+      pDb->upgrade();
+
     pDb->begin();
     cout << "DB attached" << endl;
   } catch (const std::exception &e) {
@@ -243,6 +249,108 @@ template <> void CS::processCmd(CS::cmd_detach_option &opt) {
   pDb.reset();
   dbName = "";
   cout << "DB detached" << endl;
+}
+
+template <> void CS::processCmd(CS::cmd_setup_option &opt) {
+  if (opt[id::from].isValid() && opt[id::from][id::json].isValid()) {
+    std::ifstream jsonFile(opt[id::from][id::json]());
+
+    // Parse json file
+    Json::Value root;
+    try {
+      jsonFile >> root;
+    } catch (const std::exception& e) {
+      cerr << "json file parse error" << e.what() << endl;
+      return;
+    }
+
+    // now play with DB
+    try {
+
+      // Parse 'rules'
+      const auto& rules = root["rules"];
+      if (!rules.empty())
+        parseRules(*pDb, rules);
+
+      // Parse 'grammars'
+      const auto& grammars = root["grammars"];
+      if (!grammars.empty())
+        parseGrammars(*pDb, grammars);
+
+      // Parse 'patterns'
+      const auto& patterns = root["patterns"];
+      if (!patterns.empty())
+        parsePatterns(*pDb, patterns);
+
+      parseNameList<Engine>(*pDb, "engines", root);
+      parseNameList<Result>(*pDb, "results", root);
+
+      // Parse 'tests' (involves tables 'Test', 'TestGrammar', 'TestResult')
+      const auto& tests = root["tests"];
+      if (!tests.empty())
+        parseTests(*pDb, tests);
+
+      pDb->commit(); // commit changes
+
+    } catch (const std::exception& e) {
+      cerr << "error during parsing" << e.what() << endl;
+      return;
+    } catch (Except e) {
+      cerr << e << endl;
+      return;
+    }
+  } // setup from json command
+}
+
+template <> void CS::processCmd(CS::cmd_update_option &opt)
+{
+  try {
+
+    AuxInfo aux;
+    aux.resMatchId =
+        select<Result>(*pDb, Result::Name == "match").one().id.value();
+    aux.resNomatchId =
+        select<Result>(*pDb, Result::Name == "nomatch").one().id.value();
+    aux.resErrorId =
+        select<Result>(*pDb, Result::Name == "error").one().id.value();
+    aux.str2EngineId["rematch"] =
+        select<Engine>(*pDb, Engine::Name == "rematch").one().id.value();
+    aux.str2EngineId["hyperscan"] =
+        select<Engine>(*pDb, Engine::Name == "hyperscan").one().id.value();
+    aux.str2EngineId["pcre"] =
+        select<Engine>(*pDb, Engine::Name == "pcre").one().id.value();
+    aux.nmatch = 10; // TODO
+    auto& rules = aux.rules;
+    vector<DbRule> dbRules = select<DbRule>(*pDb).orderBy(DbRule::Id).all();
+    for (const auto &dbRule : dbRules) {
+      auto blob = dbRule.content.value();
+      size_t len = blob.length();
+      auto temp = std::make_unique<char[]>(len);
+      blob.getData(reinterpret_cast<unsigned char*>(temp.get()), len, 0);
+      std::string line(temp.get(), len);
+      rules.emplace_back(regexbench::Rule(line, static_cast<size_t>(dbRule.id.value())));
+    }
+    // for debugging
+    //for (const auto &r : rules) {
+    //  cout << "rule " << r.getID() << ": " << r.getRegexp() << endl;
+    //}
+
+    checkRematch(*pDb, aux);
+    checkHyperscan(*pDb, aux);
+    checkPcre(*pDb, aux);
+
+    pDb->commit(); // commit changes (mostly about result)
+
+  } catch (const std::exception &e) {
+    cerr << e.what() << endl;
+    return;
+  } catch (Except& e) { // litesql exception
+    cerr << e << endl;
+    return;
+  }
+
+
+
 }
 
 // TODO : move this to header file
@@ -276,6 +384,7 @@ void CS::processTestTable(CS::cmd_show_table_test_option& opt)
   int condExpect = 0; // expect id
   bool condFailed = false;
   int condEngine = 0;
+  bool showContent = opt[id::detailed].isValid() ? true : false;
 
   if (opt[id::cond].isValid()) {
     auto &cond = opt[id::cond];
@@ -329,9 +438,17 @@ void CS::processTestTable(CS::cmd_show_table_test_option& opt)
                     .all();
       if (results.empty())
         continue;
+    } else {
+      results =
+          condFailed
+              ? select<TestResult>(*pDb, TestResult::Testid == testId &&
+                                             TestResult::Resultid !=
+                                                 t.expectid.value())
+                    .all()
+              : select<TestResult>(*pDb, TestResult::Testid == testId).all();
+      if (condFailed && results.empty())
+        continue;
     }
-    else
-      results = select<TestResult>(*pDb, TestResult::Testid == testId).all();
 
     std::string ruleName;
     std::string patternName;
@@ -355,6 +472,14 @@ void CS::processTestTable(CS::cmd_show_table_test_option& opt)
     }
 
     cout << endl;
+    if (showContent) {
+      const auto &r = select<DbRule>(*pDb, DbRule::Id == t.ruleid.value()).one();
+      const auto &p = select<Pattern>(*pDb, Pattern::Id == t.patternid.value()).one();
+      auto rContent = blob2String(r.content.value()); // char[]
+      auto pContent = blob2String(p.content.value()); // char[]
+      cout << "  rule : " << rContent.get() << endl;
+      cout << "  pattern : " << pContent.get() << endl;
+    }
   }
 }
 
@@ -392,6 +517,21 @@ template <> void CS::processCmd(CS::cmd_show_option &opt) {
   } catch (const Except& e) { // litesql exception
     cerr << e << endl;
   }
+}
+
+template <> void CS::processCmd(CS::cmd_clear_option &opt)
+{
+  if (!pDb) {
+    cerr << "DB must be attached beforehand" << endl;
+    return;
+  }
+
+  if (opt[id::result].isValid()) {
+    // clear TestResult table contents
+    pDb->query("DELETE FROM " + TestResult::table__);
+  }
+  pDb->commit();
+  cout << "table " << TestResult::table__ << " cleared" << endl;
 }
 
 template <> void CS::processCmd(CS::cmd_exit_option &) {

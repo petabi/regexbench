@@ -4,7 +4,6 @@
 #include <vector>
 #include <map>
 
-#include <jsoncpp/json/json.h>
 #include "db_setup.h"
 
 // std namespace aliases
@@ -13,13 +12,16 @@ using std::cerr;
 using std::endl;
 using std::string;
 
+/*
 static void usage()
 {
   cerr << "arguments too few" << endl;
   cerr << "command line should look like :" << endl;
   cerr << "$ db_setup {json_file} {db_file}" << endl;
 }
+*/
 
+/*
 template <typename T>
 void parseNameList(PcreCheckDb& db, const string& member, const Json::Value&);
 
@@ -27,7 +29,9 @@ static void parseRules(PcreCheckDb& db, const Json::Value&);
 static void parseGrammars(PcreCheckDb& db, const Json::Value&);
 static void parsePatterns(PcreCheckDb& db, const Json::Value&);
 static void parseTests(PcreCheckDb& db, const Json::Value&);
+*/
 
+/*
 int main(int argc, char **argv) {
   if (argc < 3) {
     usage();
@@ -94,8 +98,10 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+*/
 
 // currently engines, results
+/*
 template <typename T>
 void parseNameList(PcreCheckDb& db, const string& member,
                    const Json::Value& root)
@@ -115,6 +121,7 @@ void parseNameList(PcreCheckDb& db, const string& member,
     }
   }
 }
+*/
 
 void parseRules(PcreCheckDb& db, const Json::Value& rules)
 {

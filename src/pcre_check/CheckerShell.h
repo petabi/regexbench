@@ -36,6 +36,12 @@ AUTO_OPT_ID(desc);
 AUTO_OPT_ID(show);
 AUTO_OPT_ID(table);
 AUTO_OPT_ID(failed);
+AUTO_OPT_ID(detailed);
+AUTO_OPT_ID(setup);
+AUTO_OPT_ID(update);
+AUTO_OPT_ID(clear);
+AUTO_OPT_ID(from);
+AUTO_OPT_ID(json);
 AUTO_OPT_ID(exit);
 
 using cmd_opts_type = auto_opt_def<
@@ -45,11 +51,20 @@ using cmd_opts_type = auto_opt_def<
   auto_opt_tbl<idt::detach,
     auto_opt_null<idt::db>
   >,
+  auto_opt_tbl<idt::setup,
+    auto_opt_tbl<idt::from,
+      auto_opt_str<idt::json>
+    >
+  >,
+  auto_opt_tbl<idt::update,
+    auto_opt_null<idt::result>
+  >,
   auto_opt_tbl<idt::show,
     auto_opt_tbl<idt::table,
       auto_opt_null<idt::rule>,
       auto_opt_null<idt::pattern>,
       auto_opt_tbl<idt::test,
+        auto_opt_null<idt::detailed>,
         auto_opt_tbl<idt::cond,
           auto_opt_str<idt::rule>,
           auto_opt_str<idt::pattern>
@@ -69,6 +84,9 @@ using cmd_opts_type = auto_opt_def<
         >
       >
     >
+  >, // show
+  auto_opt_tbl<idt::clear,
+    auto_opt_null<idt::result>
   >,
   auto_opt_null<idt::exit>
 >;
@@ -117,7 +135,10 @@ private:
 public:
   using cmd_attach_option = decltype(cmdOpts[id::attach]);
   using cmd_detach_option = decltype(cmdOpts[id::detach]);
+  using cmd_setup_option = decltype(cmdOpts[id::setup]);
+  using cmd_update_option = decltype(cmdOpts[id::update]);
   using cmd_show_option = decltype(cmdOpts[id::show]);
+  using cmd_clear_option = decltype(cmdOpts[id::clear]);
   using cmd_exit_option = decltype(cmdOpts[id::exit]);
 
   using cmd_show_table_test_option =

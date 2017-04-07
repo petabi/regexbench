@@ -14,6 +14,7 @@
 
 #include "db_setup.h"
 #include "../Rule.h"
+#include "PcreChecker.h"
 #include "CheckerShell.h"
 
 using std::cout;
@@ -36,6 +37,7 @@ static void usage()
   cerr << "$ pcre_checker -s" << endl;
 }
 
+/*
 struct AuxInfo {
   int resMatchId;
   int resNomatchId;
@@ -49,6 +51,7 @@ struct AuxInfo {
 static void checkRematch(PcreCheckDb& db, const struct AuxInfo& aux);
 static void checkHyperscan(PcreCheckDb& db, struct AuxInfo& aux);
 static void checkPcre(PcreCheckDb& db, struct AuxInfo& aux);
+*/
 
 static int runShell();
 

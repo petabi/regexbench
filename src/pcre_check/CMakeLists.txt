@@ -15,7 +15,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-padded")
 
 
-add_executable(db_setup db_setup.cpp pcrecheckdb.cpp)
+#add_executable(db_setup db_setup.cpp pcrecheckdb.cpp)
 
 find_package(Lua REQUIRED) # TODO revisit!!!
 find_library(LIB_SQLITE3 NAMES sqlite3)
@@ -24,14 +24,14 @@ find_library(LIB_LITESQL NAMES liblitesql.a)
 find_library(LIB_LITESQL_UTIL NAMES liblitesql-util.a)
 find_library(LIB_LITESQL_SQLITE NAMES liblitesql_sqlite.a)
 find_library(EDITLINE_LIB NAMES edit)
-target_link_libraries(db_setup
-  ${Boost_LIBRARIES} ${LIB_LITESQL} ${LIB_LITESQL_UTIL} ${LIB_LITESQL_SQLITE} ${LIB_SQLITE3} ${LIB_JSONCPP})
+#target_link_libraries(db_setup
+#  ${Boost_LIBRARIES} ${LIB_LITESQL} ${LIB_LITESQL_UTIL} ${LIB_LITESQL_SQLITE} ${LIB_SQLITE3} ${LIB_JSONCPP})
 
 include_directories(SYSTEM ${LUA_INCLUDE_DIR})
 
-add_executable(pcre_checker PcreChecker.cpp pcrecheckdb.cpp ../Rule.cpp CheckerShell.cpp)
+add_executable(pcre_checker PcreChecker.cpp pcrecheckdb.cpp ../Rule.cpp CheckerShell.cpp db_setup.cpp)
 target_link_libraries(pcre_checker engines
   ${Boost_LIBRARIES} ${LIB_LITESQL} ${LIB_LITESQL_UTIL} ${LIB_LITESQL_SQLITE} ${LIB_SQLITE3}
   ${PCRE2_LIB} ${REMATCHCOMP_LIB} ${REMATCHEXEC_LIB} ${HYPERSCAN_LIB}
-  ${EDITLINE_LIB}
+  ${EDITLINE_LIB} ${LIB_JSONCPP}
 )
