@@ -125,8 +125,6 @@ private:
   EditLine *el;
   History *hist;
   Tokenizer *tok;
-  // Environment config
-  std::string destAddr;
 
   // command and option parsing
   cmd_opts_type cmdOpts;

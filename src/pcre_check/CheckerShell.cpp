@@ -113,7 +113,6 @@ static size_t getCommon(const std::vector<std::string> &cands,
   return newLen;
 }
 
-//#define LINE_MAX 256
 unsigned char CS::doComplete() {
   static char line[LINE_MAX + 1]; // including null character
   static size_t lastCurpos = 0;
@@ -348,9 +347,6 @@ template <> void CS::processCmd(CS::cmd_update_option &opt)
     cerr << e << endl;
     return;
   }
-
-
-
 }
 
 // TODO : move this to header file
