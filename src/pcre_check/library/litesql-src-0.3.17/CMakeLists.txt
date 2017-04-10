@@ -1,7 +1,6 @@
-cmake_minimum_required(VERSION 2.6)
-
-enable_language(C)
-enable_language(CXX)
+unset(CMAKE_CXX_FLAGS)
+unset(CMAKE_C_FLAGS)
+set_directory_properties(PROPERTIES INCLUDE_DIRECTORIES "")
 
 if (MSVC)
   option(LITESQL_MSVC_MT "link with /MT instead of /MD (use dlls versus static linked, change also wxWidgets_LIB_DIR)" ON) 
@@ -31,13 +30,6 @@ include (${CMAKE_ROOT}/Modules/CheckIncludeFileCXX.cmake)
 include (${CMAKE_ROOT}/Modules/CheckIncludeFiles.cmake)
 include (${CMAKE_ROOT}/Modules/CheckLibraryExists.cmake)
 include (${CMAKE_ROOT}/Modules/CheckSymbolExists.cmake)
-
-set(PROJECT_NAME "litesql")
-
-set(PROJECT_VERSION_MAJOR 0)
-set(PROJECT_VERSION_MINOR 3)
-set(PROJECT_VERSION_PATCH 17)
-set(PROJECT_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} )
 
 include(cmake/FindMySQL.cmake)
 include(cmake/FindPostgreSQL.cmake)
@@ -209,50 +201,3 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/config.h DESTINATION include/litesql
           COMPONENT devel)
 
 add_subdirectory(src)
- 
-project( ${PROJECT_NAME} )
-
-include(InstallRequiredSystemLibraries)
-
-set(CPACK_GENERATOR TGZ ZIP)
-if(WIN32 AND NOT CYGWIN)
-  set(CPACK_GENERATOR NSIS ${CPACK_GENERATOR})
-endif(WIN32 AND NOT CYGWIN)
-if(APPLE)
-  set(CPACK_GENERATOR DragNDrop ${CPACK_GENERATOR})
-endif(APPLE)
-if (UNIX AND NOT APPLE AND NOT WIN32)
-  set(CPACK_GENERATOR DEB ${CPACK_GENERATOR})
-endif (UNIX AND NOT APPLE AND NOT WIN32)
-
-set(CPACK_SOURCE_PACKAGE_FILE_NAME ${PROJECT_NAME}-src-${PROJECT_VERSION})
-set(CPACK_SOURCE_GENERATOR TGZ ZIP)
-set(CPACK_PACKAGE_CONTACT gulliver@users.sourceforge.net) 
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_NAME})
-set(CPACK_PACKAGE_VENDOR "litesql Development Team")
-set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/readme.txt")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
-set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
-set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
-set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
-set(CPACK_SOURCE_IGNORE_FILES "/docs/html;/autom4te.cache;/build/;/win32/;/.svn/;/.git/;~$;${CPACK_SOURCE_IGNORE_FILES}")
-
-if(WIN32 AND NOT UNIX)
-  set(CPACK_PACKAGE_INSTALL_DIRECTORY "${PROJECT_NAME}\\\\${PROJECT_VERSION}")
-  # There is a bug in NSI that does not handle full unix paths properly. Make
-  # sure there is at least one set of four (4) backlashes.
-  # set(CPACK_PACKAGE_ICON "${CMake_SOURCE_DIR}/Utilities/Release\\\\InstallIcon.bmp")
-  set(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\${PROJECT_NAME}.exe")
-  set(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY} ${PROJECT_NAME}")
-  set(CPACK_NSIS_HELP_LINK "http://litesql.sourceforge.net/")
-  set(CPACK_NSIS_URL_INFO_ABOUT "http://litesql.sourceforge.net/")
-  set(CPACK_NSIS_CONTACT "gulliver@users.sourceforge.net")
-  set(CPACK_NSIS_MODIFY_PATH ON)
-  set(CPACK_NSIS_MENU_LINKS "doc/html/index.html;Documentation")
-else(WIN32 AND NOT UNIX)
-  set(CPACK_PACKAGE_INSTALL_DIRECTORY "${PROJECT_NAME}/${PROJECT_VERSION}")
-  set(CPACK_STRIP_FILES "bin/${PROJECT_NAME}-gen")
-  set(CPACK_SOURCE_STRIP_FILES "")
-endif(WIN32 AND NOT UNIX)
-set(CPACK_PACKAGE_EXECUTABLES Visual-Litesql;Visual-Litesql;${PROJECT_NAME}-gen;${PROJECT_NAME}-gen)
-include(CPack)
