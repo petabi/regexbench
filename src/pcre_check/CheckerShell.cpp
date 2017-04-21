@@ -349,6 +349,29 @@ template <> void CS::processCmd(CS::cmd_update_option &opt)
   }
 }
 
+template <> void CS::processCmd(CS::cmd_singletest_option &opt)
+{
+  if (!opt[id::re].isValid() || !opt[id::data].isValid()) {
+    cerr << "'re' and 'data' should be specified" << endl;
+    return;
+  }
+
+  PcreCheckDb dummyDb("sqlite3", "database=dummy");
+
+  AuxInfo aux;
+  aux.rules.emplace_back(regexbench::Rule(opt[id::re](), 1));
+  aux.data = opt[id::data]();
+  aux.nmatch = 1;
+  aux.single = 1;
+
+  checkPcre(dummyDb, aux);
+  cout << "Result : pcre => " << aux.result << endl;
+  checkRematch(dummyDb, aux);
+  cout << "Result : rematch => " << aux.result << endl;
+  checkHyperscan(dummyDb, aux);
+  cout << "Result : hyperscan => " << aux.result << endl;
+}
+
 // TODO : move this to header file
 template <typename Table>
 void setIdFromName(PcreCheckDb& db, const std::string& name, int& id)

@@ -42,6 +42,9 @@ AUTO_OPT_ID(update);
 AUTO_OPT_ID(clear);
 AUTO_OPT_ID(from);
 AUTO_OPT_ID(json);
+AUTO_OPT_ID(singletest);
+AUTO_OPT_ID(re);
+AUTO_OPT_ID(data);
 AUTO_OPT_ID(exit);
 
 using cmd_opts_type = auto_opt_def<
@@ -58,6 +61,10 @@ using cmd_opts_type = auto_opt_def<
   >,
   auto_opt_tbl<idt::update,
     auto_opt_null<idt::result>
+  >,
+  auto_opt_tbl<idt::singletest,
+    auto_opt_str<idt::re>,
+    auto_opt_str<idt::data>
   >,
   auto_opt_tbl<idt::show,
     auto_opt_tbl<idt::table,
@@ -137,6 +144,7 @@ public:
   using cmd_update_option = decltype(cmdOpts[id::update]);
   using cmd_show_option = decltype(cmdOpts[id::show]);
   using cmd_clear_option = decltype(cmdOpts[id::clear]);
+  using cmd_singletest_option = decltype(cmdOpts[id::singletest]);
   using cmd_exit_option = decltype(cmdOpts[id::exit]);
 
   using cmd_show_table_test_option =

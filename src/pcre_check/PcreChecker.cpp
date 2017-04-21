@@ -126,9 +126,11 @@ int main(int argc, char **argv)
   return 0;
 }
 
-void checkRematch(PcreCheckDb& db, const struct AuxInfo& aux)
+void checkRematch(PcreCheckDb& db, struct AuxInfo& aux)
 {
-  int engineId = aux.str2EngineId.at("rematch");
+  int engineId = 0;
+  if (!aux.single)
+    engineId = aux.str2EngineId.at("rematch");
   int resMatchId = aux.resMatchId;
   int resNomatchId = aux.resNomatchId;
   const auto& rules = aux.rules;
@@ -161,78 +163,87 @@ void checkRematch(PcreCheckDb& db, const struct AuxInfo& aux)
 
   // prepare data (only need the data specified in Test table)
   int lastPid = -1;
-  vector<Test> tests = select<Test>(db).orderBy(Test::Patternid).all();
-  for (const auto& t : tests) {
-    if (t.patternid.value() == lastPid)
-      continue;
-    lastPid = t.patternid.value();
-    // we can get excption below
-    // (which should not happen with a db correctly set up)
-    const auto& pattern = select<Pattern>(db, Pattern::Id == lastPid).one();
-    auto blob = pattern.content.value();
-    size_t len = blob.length();
-    auto temp = std::make_unique<char[]>(len);
-    blob.getData(reinterpret_cast<unsigned char*>(temp.get()), len, 0);
+  if (aux.single) { // single test mode
+    int ret = rematch2_exec(matcher, aux.data.data(), aux.data.size(), context);
+    if (context->num_matches > 0)
+      aux.result = 1;
+    else
+      aux.result = 0;
+  } else {
+    vector<Test> tests = select<Test>(db).orderBy(Test::Patternid).all();
+    for (const auto& t : tests) {
+      if (t.patternid.value() == lastPid)
+        continue;
+      lastPid = t.patternid.value();
+      // we can get excption below
+      // (which should not happen with a db correctly set up)
+      const auto& pattern = select<Pattern>(db, Pattern::Id == lastPid).one();
+      auto blob = pattern.content.value();
+      size_t len = blob.length();
+      auto temp = std::make_unique<char[]>(len);
+      blob.getData(reinterpret_cast<unsigned char*>(temp.get()), len, 0);
 
-    // for debugging
-    // cout << "pattern " << lastPid << " content : " << string(temp.get(), len)
-    //     << endl;
-
-    // set up Rule-id to (Test-id, result) mapping to be used for TestResult
-    // update
-    std::map<int, std::pair<int, bool>> rule2TestMap;
-    auto curTest = select<Test>(db, Test::Patternid == lastPid).cursor();
-    for (; curTest.rowsLeft(); curTest++) {
-      rule2TestMap[(*curTest).ruleid.value()] =
-          std::make_pair((*curTest).id.value(), false);
-    }
-
-    // do match
-    int ret = rematch2_exec(matcher, temp.get(), len, context);
-    if (ret == MREG_FINISHED) { // this means we need to adjust 'nmatch'
-                                // parameter used for rematch2ContextInit
-      cerr << "rematch2 returned MREG_FINISHED" << endl;
-    }
-    if (context->num_matches > 0) { // match
       // for debugging
-      // cout << "pattern " << lastPid;
-      // cout << " matched rules :" << endl;
-      for (size_t i = 0; i < context->num_matches; ++i) {
-        // for debugging
-        // cout << " " << context->matchlist[i].fid;
-        stateid_t mid = context->matchlist[i].fid;
-        if (rule2TestMap.count(static_cast<int>(mid)) > 0)
-          rule2TestMap[static_cast<int>(mid)].second = true;
-      }
-      // cout << endl;
-    } else { // nomatch
-      cout << "pattern " << lastPid << " has no match" << endl;
-    }
-    rematch2ContextClear(context, true);
+      // cout << "pattern " << lastPid << " content : " << string(temp.get(),
+      // len)
+      //     << endl;
 
-    // for debugging
-    // cout << "Matched rule and test id for pattern id " << lastPid << endl;
-    // for (const auto& p : rule2TestMap) {
-    //  cout << " rule id " << p.first << " test id " << p.second.first
-    //       << " matched? " << p.second.second << endl;
-    //}
-    for (const auto& p : rule2TestMap) {
-      try {
-        auto cur =
-            select<TestResult>(db, TestResult::Testid == p.second.first &&
-                                       TestResult::Engineid == engineId)
-                .cursor();
-        (*cur).resultid = (p.second.second ? resMatchId : resNomatchId);
-        (*cur).update();
-      } catch (NotFound) {
-        TestResult res(db);
-        res.testid = p.second.first;
-        res.engineid = engineId;
-        res.resultid = (p.second.second ? resMatchId : resNomatchId);
-        res.update();
+      // set up Rule-id to (Test-id, result) mapping to be used for TestResult
+      // update
+      std::map<int, std::pair<int, bool>> rule2TestMap;
+      auto curTest = select<Test>(db, Test::Patternid == lastPid).cursor();
+      for (; curTest.rowsLeft(); curTest++) {
+        rule2TestMap[(*curTest).ruleid.value()] =
+            std::make_pair((*curTest).id.value(), false);
       }
-    }
-  } // for loop for Test table entries
+
+      // do match
+      int ret = rematch2_exec(matcher, temp.get(), len, context);
+      if (ret == MREG_FINISHED) { // this means we need to adjust 'nmatch'
+                                  // parameter used for rematch2ContextInit
+        cerr << "rematch2 returned MREG_FINISHED" << endl;
+      }
+      if (context->num_matches > 0) { // match
+        // for debugging
+        // cout << "pattern " << lastPid;
+        // cout << " matched rules :" << endl;
+        for (size_t i = 0; i < context->num_matches; ++i) {
+          // for debugging
+          // cout << " " << context->matchlist[i].fid;
+          stateid_t mid = context->matchlist[i].fid;
+          if (rule2TestMap.count(static_cast<int>(mid)) > 0)
+            rule2TestMap[static_cast<int>(mid)].second = true;
+        }
+        // cout << endl;
+      } else { // nomatch
+        cout << "pattern " << lastPid << " has no match" << endl;
+      }
+      rematch2ContextClear(context, true);
+
+      // for debugging
+      // cout << "Matched rule and test id for pattern id " << lastPid << endl;
+      // for (const auto& p : rule2TestMap) {
+      //  cout << " rule id " << p.first << " test id " << p.second.first
+      //       << " matched? " << p.second.second << endl;
+      //}
+      for (const auto& p : rule2TestMap) {
+        try {
+          auto cur = select<TestResult>(db,
+                                        TestResult::Testid == p.second.first &&
+                                            TestResult::Engineid == engineId)
+                         .cursor();
+          (*cur).resultid = (p.second.second ? resMatchId : resNomatchId);
+          (*cur).update();
+        } catch (NotFound) {
+          TestResult res(db);
+          res.testid = p.second.first;
+          res.engineid = engineId;
+          res.resultid = (p.second.second ? resMatchId : resNomatchId);
+          res.update();
+        }
+      }
+    } // for loop for Test table entries
+  }
 
   // clean-up of REmatch related objects
   rematch2ContextFree(context);
@@ -249,7 +260,9 @@ static int hsOnMatch(unsigned int, unsigned long long, unsigned long long,
 
 void checkHyperscan(PcreCheckDb& db, struct AuxInfo& aux)
 {
-  int engineId = aux.str2EngineId.at("hyperscan");
+  int engineId = 0;
+  if (!aux.single)
+    engineId = aux.str2EngineId.at("hyperscan");
   int resMatchId = aux.resMatchId;
   int resNomatchId = aux.resNomatchId;
   int resErrorId = aux.resErrorId;
@@ -259,6 +272,41 @@ void checkHyperscan(PcreCheckDb& db, struct AuxInfo& aux)
   hs_scratch_t* hsScratch = nullptr;
   //hs_platform_info_t hsPlatform;
   hs_compile_error_t* hsErr = nullptr;
+
+  if (aux.single) {
+    const auto& rule = rules[0];
+
+    unsigned flag = HS_FLAG_ALLOWEMPTY;
+    if (rule.isSet(regexbench::MOD_CASELESS))
+      flag |= HS_FLAG_CASELESS;
+    if (rule.isSet(regexbench::MOD_MULTILINE))
+      flag |= HS_FLAG_MULTILINE;
+    if (rule.isSet(regexbench::MOD_DOTALL))
+      flag |= HS_FLAG_DOTALL;
+
+    auto resCompile = hs_compile(rule.getRegexp().data(), flag, HS_MODE_BLOCK,
+                                 nullptr, &hsDb, &hsErr);
+    if (resCompile == HS_SUCCESS) {
+      auto resAlloc = hs_alloc_scratch(hsDb, &hsScratch);
+      if (resAlloc != HS_SUCCESS) {
+        hs_free_database(hsDb);
+        throw std::bad_alloc();
+      }
+    } else {
+      hs_free_compile_error(hsErr);
+      aux.result = -1;
+      return;
+    }
+
+    size_t nmatches = 0;
+    hs_scan(hsDb, aux.data.data(), static_cast<unsigned>(aux.data.size()), 0,
+            hsScratch, hsOnMatch, &nmatches);
+    aux.result = (nmatches > 0) ? 1 : 0;
+
+    hs_free_scratch(hsScratch);
+    hs_free_database(hsDb);
+    return;
+  }
 
   auto cur = select<Test>(db).orderBy(Test::Ruleid).cursor();
   if (!cur.rowsLeft()) // nothing to do
@@ -353,11 +401,40 @@ void checkHyperscan(PcreCheckDb& db, struct AuxInfo& aux)
 
 void checkPcre(PcreCheckDb& db, struct AuxInfo& aux)
 {
-  int engineId = aux.str2EngineId.at("pcre");
+  int engineId = 0;
+  if (!aux.single)
+    engineId = aux.str2EngineId.at("pcre");
   int resMatchId = aux.resMatchId;
   int resNomatchId = aux.resNomatchId;
   int resErrorId = aux.resErrorId;
   const auto& rules = aux.rules;
+
+  if (aux.single) {
+    const auto& rule = rules[0];
+    PCRE2_SIZE erroffset = 0;
+    int errcode = 0;
+    pcre2_code* re =
+        pcre2_compile(reinterpret_cast<PCRE2_SPTR>(rule.getRegexp().data()),
+                      PCRE2_ZERO_TERMINATED, rule.getPCRE2Options(), &errcode,
+                      &erroffset, nullptr);
+    pcre2_match_data* mdata = nullptr;
+    if (re != nullptr) {
+      mdata = pcre2_match_data_create_from_pattern(re, nullptr);
+    } else {
+      aux.result = -1;
+      return;
+    }
+
+    int rc = pcre2_match(
+        re, reinterpret_cast<PCRE2_SPTR>(aux.data.data()), aux.data.size(), 0,
+        PCRE2_NOTEMPTY_ATSTART | PCRE2_NOTEMPTY, mdata, nullptr);
+
+    aux.result = (rc >= 0) ? 1 : 0;
+
+    pcre2_code_free(re);
+    pcre2_match_data_free(mdata);
+    return;
+  }
 
   auto cur = select<Test>(db).orderBy(Test::Ruleid).cursor();
   if (!cur.rowsLeft()) // nothing to do
