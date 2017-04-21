@@ -303,6 +303,11 @@ template <> void CS::processCmd(CS::cmd_setup_option &opt) {
 
 template <> void CS::processCmd(CS::cmd_update_option &opt)
 {
+  if (!pDb) {
+    cerr << "DB must be attached beforehand" << endl;
+    return;
+  }
+
   try {
 
     AuxInfo aux;
@@ -319,6 +324,7 @@ template <> void CS::processCmd(CS::cmd_update_option &opt)
     aux.str2EngineId["pcre"] =
         select<Engine>(*pDb, Engine::Name == "pcre").one().id.value();
     aux.nmatch = 10; // TODO
+    aux.single = 0;
     auto& rules = aux.rules;
     vector<DbRule> dbRules = select<DbRule>(*pDb).orderBy(DbRule::Id).all();
     for (const auto &dbRule : dbRules) {
