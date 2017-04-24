@@ -210,7 +210,8 @@ void REmatch2AutomataEngine::load(const std::string& file)
 
 size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t)
 {
-  rematch2_exec(matcher, pkt, len, context);
+  // rematch2_exec will be used for session mode
+  rematch_scan_block(matcher, pkt, len, context);
   size_t matched = context->num_matches;
   rematch2ContextClear(context, true);
   return matched;

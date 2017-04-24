@@ -164,7 +164,7 @@ void checkRematch(PcreCheckDb& db, struct AuxInfo& aux)
   // prepare data (only need the data specified in Test table)
   int lastPid = -1;
   if (aux.single) { // single test mode
-    int ret = rematch2_exec(matcher, aux.data.data(), aux.data.size(), context);
+    int ret = rematch_scan_block(matcher, aux.data.data(), aux.data.size(), context);
     if (context->num_matches > 0)
       aux.result = 1;
     else
@@ -198,7 +198,7 @@ void checkRematch(PcreCheckDb& db, struct AuxInfo& aux)
       }
 
       // do match
-      int ret = rematch2_exec(matcher, temp.get(), len, context);
+      int ret = rematch_scan_block(matcher, temp.get(), len, context);
       if (ret == MREG_FINISHED) { // this means we need to adjust 'nmatch'
                                   // parameter used for rematch2ContextInit
         cerr << "rematch2 returned MREG_FINISHED" << endl;
