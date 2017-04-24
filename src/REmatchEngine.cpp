@@ -201,12 +201,7 @@ void REmatch2AutomataEngine::compile(const std::vector<Rule>& rules,
     throw std::runtime_error("Could not build REmatch2 matcher.");
   }
   numThreads = numThr;
-  for (size_t i = 0; i < numThreads; ++i) {
-    auto context = rematch2ContextInit(matcher, 1);
-    if (context == nullptr)
-      throw std::runtime_error("Could not initialize context.");
-    contexts.push_back(context);
-  }
+  contexts.resize(numThreads, nullptr);
 }
 
 void REmatch2AutomataEngine::load(const std::string& file, size_t numThr)
@@ -215,18 +210,18 @@ void REmatch2AutomataEngine::load(const std::string& file, size_t numThr)
   if (matcher == nullptr)
     throw std::runtime_error("Could not load REmatch2 matcher.");
   numThreads = numThr;
-  for (size_t i = 0; i < numThreads; ++i) {
-    auto context = rematch2ContextInit(matcher, 1);
-    if (context == nullptr)
-      throw std::runtime_error("Could not initialize context.");
-    contexts.push_back(context);
-  }
+  contexts.resize(numThreads, nullptr);
 }
 
 size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,
                                      size_t thr)
 {
-  auto& context = contexts[thr];
+  auto context = contexts[thr];
+  if (__builtin_expect((context == nullptr), false)) {
+    context = contexts[thr] = rematch2ContextInit(matcher, 1);
+    if (context == nullptr)
+      throw std::runtime_error("Could not initialize context.");
+  }
   rematch_scan_block(matcher, pkt, len, context);
   size_t matched = context->num_matches;
   rematch2ContextClear(context, true);
