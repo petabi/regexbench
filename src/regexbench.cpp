@@ -173,22 +173,19 @@ int main(int argc, const char* argv[])
     struct timeval compileUdiff, compileSdiff;
     timersub(&(compileEnd.ru_utime), &(compileBegin.ru_utime), &compileUdiff);
     timersub(&(compileEnd.ru_stime), &(compileBegin.ru_stime), &compileSdiff);
-    auto compileTime =
-      (compileUdiff.tv_sec + compileSdiff.tv_sec +
-       (compileUdiff.tv_usec + compileSdiff.tv_usec) * 1e-6);
+    auto compileTime = (compileUdiff.tv_sec + compileSdiff.tv_sec +
+                        (compileUdiff.tv_usec + compileSdiff.tv_usec) * 1e-6);
     std::cout << std::endl;
-    std::cout << "Compile time : "
-              << compileTime
+    std::cout << "Compile time : " << compileTime << std::endl << std::endl;
+    std::cout << "Pcap TotalBytes : " << pcap.getNumberOfBytes() << std::endl;
+    std::cout << "Pcap TotalPackets : " << pcap.getNumberOfPackets()
               << std::endl
               << std::endl;
-    std::cout << "Pcap TotalBytes : " << pcap.getNumberOfBytes() << std::endl;
-    std::cout << "Pcap TotalPackets : " << pcap.getNumberOfPackets() << std::endl
-      << std::endl;
 
-    std::string reportFields[]{
-        "TotalMatches", "TotalMatchedPackets",  "UserTime",     "SystemTime",
-        "TotalTime",    "Mbps",
-        "Mpps",         "MaximumMemoryUsed(kB)"};
+    std::string reportFields[]{"TotalMatches", "TotalMatchedPackets",
+                               "UserTime",     "SystemTime",
+                               "TotalTime",    "Mbps",
+                               "Mpps",         "MaximumMemoryUsed(kB)"};
 
     std::vector<regexbench::MatchResult> results = match(
         *engine, pcap, args.repeat, args.cores, match_info, args.log_file);
