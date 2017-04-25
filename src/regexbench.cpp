@@ -199,6 +199,9 @@ int main(int argc, const char* argv[])
     std::string rulePrefix = prefix + "Rule.";
     pt.put(rulePrefix + "File", args.rule_file);
     pt.put(rulePrefix + "CompileTime", compileTime);
+    if (args.engine == EngineType::rematch ||
+        args.engine == EngineType::rematch2)
+      pt.put(rulePrefix + "Reduce", args.reduce ? "On" : "Off");
     std::string pcapPrefix = prefix + "Pcap.";
     pt.put(pcapPrefix + "File", args.pcap_file);
     pt.put(pcapPrefix + "TotalBytes", pcap.getNumberOfBytes());
