@@ -31,6 +31,7 @@
 #ifdef HAVE_REMATCH
 #include "REmatchEngine.h"
 #endif
+#include "Logger.h"
 #include "Rule.h"
 #include "regexbench.h"
 
@@ -53,6 +54,7 @@ enum class EngineType : uint64_t {
 
 struct Arguments {
   std::string output_file;
+  std::string log_file;
   std::string pcap_file;
   std::string rule_file;
   EngineType engine;
@@ -177,8 +179,8 @@ int main(int argc, const char* argv[])
         "Mpps",         "MaximumMemoryUsed(kB)"};
     std::string prefix = "regexbench.";
 
-    std::vector<regexbench::MatchResult> results =
-        match(*engine, pcap, args.repeat, args.cores, match_info);
+    std::vector<regexbench::MatchResult> results = match(
+        *engine, pcap, args.repeat, args.cores, match_info, args.log_file);
 
     auto coreIter = args.cores.begin();
     coreIter++; // get rid of main thread
@@ -336,6 +338,9 @@ Arguments parse_options(int argc, const char* argv[])
       "output,o",
       po::value<std::string>(&args.output_file)->default_value("output.json"),
       "Output JSON file.");
+  optargs.add_options()(
+      "logfile,l", po::value<std::string>(&args.log_file)->default_value(""),
+      "Log file.");
   optargs.add_options()(
       "threads,n", po::value<uint32_t>(&args.num_threads)->default_value(1),
       "Number of threads.");

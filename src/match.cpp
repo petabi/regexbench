@@ -20,9 +20,11 @@
 
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <thread>
 
 #include "Engine.h"
+#include "Logger.h"
 #include "PcapSource.h"
 #include "Session.h"
 #include "regexbench.h"
@@ -141,7 +143,7 @@ using cpuset_t = cpu_set_t;
 void regexbench::matchThread(Engine* engine, const PcapSource* src, long repeat,
                              size_t core, size_t sel,
                              const std::vector<MatchMeta>* meta,
-                             MatchResult* result)
+                             MatchResult* result, Logger* logger)
 {
 #ifdef CPU_SET
   cpuset_t cpuset;
@@ -159,11 +161,16 @@ void regexbench::matchThread(Engine* engine, const PcapSource* src, long repeat,
 #endif
   for (long i = 0; i < repeat; ++i) {
     for (size_t j = 0; j < src->getNumberOfPackets(); j++) {
-      auto matches = engine->match((*src)[j].data() + (*meta)[j].oft,
-                                   (*meta)[j].len, (*meta)[j].sid, sel);
+      size_t matchId;
+      auto matches =
+          engine->match((*src)[j].data() + (*meta)[j].oft, (*meta)[j].len,
+                        (*meta)[j].sid, sel, &matchId);
       if (matches) {
         result->nmatches += matches;
         result->nmatched_pkts++;
+        if (logger)
+          logger->log("Thread ", sel, "(@", core, ") packet ", j,
+                      " matches rule ", matchId);
       }
     }
   }
@@ -178,7 +185,8 @@ void regexbench::matchThread(Engine* engine, const PcapSource* src, long repeat,
 std::vector<MatchResult> regexbench::match(Engine& engine,
                                            const PcapSource& src, long repeat,
                                            const std::vector<size_t>& cores,
-                                           const std::vector<MatchMeta>& meta)
+                                           const std::vector<MatchMeta>& meta,
+                                           const std::string& logfile)
 {
   std::vector<std::thread> threads;
   std::vector<size_t>::const_iterator coreIter, coreEnd;
@@ -209,10 +217,18 @@ std::vector<MatchResult> regexbench::match(Engine& engine,
   }
 #endif
 
+  std::unique_ptr<Logger> pLogger;
+
+  if (!logfile.empty()) {
+    pLogger.reset(new Logger(logfile));
+    if (!pLogger->isOpen())
+      pLogger.reset();
+  }
   size_t i = 0;
   for (; coreIter != coreEnd; ++coreIter, ++i) {
     threads.push_back(std::thread(&regexbench::matchThread, &engine, &src,
-                                  repeat, *coreIter, i, &meta, &results[i]));
+                                  repeat, *coreIter, i, &meta, &results[i],
+                                  (pLogger ? pLogger.get() : nullptr)));
   }
   for (auto& thr : threads)
     thr.join();

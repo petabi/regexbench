@@ -68,7 +68,7 @@ void REmatchAutomataEngine::load(const std::string& filename, size_t)
 }
 
 size_t REmatchAutomataEngine::match(const char* data, size_t len, size_t,
-                                    size_t /*thr*/)
+                                    size_t /*thr*/, size_t* /*pId*/)
 {
   mregexec_single(txtbl, data, len, 1, regmatch, matcher, flow);
   return matcher->matches;
@@ -127,7 +127,8 @@ REmatchAutomataEngineSession::~REmatchAutomataEngineSession()
 }
 
 size_t REmatchAutomataEngineSession::match(const char* pkt, size_t len,
-                                           size_t idx, size_t /*thr*/)
+                                           size_t idx, size_t /*thr*/,
+                                           size_t* /*pId*/)
 {
   matcher_t* cur = child->mindex[idx];
   size_t ret = 0;
@@ -214,7 +215,7 @@ void REmatch2AutomataEngine::load(const std::string& file, size_t numThr)
 }
 
 size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,
-                                     size_t thr)
+                                     size_t thr, size_t* pId)
 {
   auto context = contexts[thr];
   if (__builtin_expect((context == nullptr), false)) {
@@ -224,6 +225,8 @@ size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,
   }
   rematch_scan_block(matcher, pkt, len, context);
   size_t matched = context->num_matches;
+  if (context->num_matches > 0)
+    *pId = context->matchlist[0].fid;
   rematch2ContextClear(context, true);
   return matched;
 }

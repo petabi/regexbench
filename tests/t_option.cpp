@@ -32,7 +32,8 @@ std::vector<regexbench::MatchResult> opTest(Engine* engine)
   regexbench::PcapSource pcap(DATA_DIR "/pcap/option.pcap");
   auto match_info = buildMatchMeta(pcap, nsessions);
   engine->init(nsessions);
-  return regexbench::match(*engine, pcap, 1, std::vector<size_t>(), match_info);
+  return regexbench::match(*engine, pcap, 1, std::vector<size_t>(), match_info,
+                           "");
 }
 
 ATF_TEST_CASE_WITHOUT_HEAD(t_option);

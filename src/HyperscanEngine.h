@@ -35,7 +35,8 @@ public:
   }
 
   virtual void compile(const std::vector<Rule>&, size_t = 1);
-  virtual size_t match(const char*, size_t, size_t, size_t = 0);
+  virtual size_t match(const char*, size_t, size_t, size_t = 0,
+                       size_t* = nullptr);
 
 protected:
   void reportFailedRules(const std::vector<Rule>&);
@@ -52,7 +53,8 @@ public:
   virtual void init(size_t);
 
   void compile(const std::vector<Rule>&, size_t = 1);
-  virtual size_t match(const char*, size_t, size_t, size_t = 0);
+  virtual size_t match(const char*, size_t, size_t, size_t = 0,
+                       size_t* = nullptr);
 
 private:
   std::unique_ptr<hs_stream* []> streams;

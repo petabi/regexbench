@@ -2,6 +2,7 @@
 #ifndef REGEXBENCH_H
 #define REGEXBENCH_H
 
+#include "Logger.h"
 #include "Rule.h"
 #include <boost/timer/timer.hpp>
 #include <vector>
@@ -41,10 +42,11 @@ std::vector<Rule> loadRules(const std::string&);
 //                  const std::vector<MatchMeta>&);
 void matchThread(Engine* engine, const PcapSource* src, long repeat,
                  size_t core, size_t sel, const std::vector<MatchMeta>* meta,
-                 MatchResult* result);
+                 MatchResult* result, Logger* logger);
 std::vector<MatchResult> match(Engine&, const PcapSource&, long,
                                const std::vector<size_t>&,
-                               const std::vector<MatchMeta>&);
+                               const std::vector<MatchMeta>&,
+                               const std::string&);
 }
 
 #endif // REGEXBENCH_H

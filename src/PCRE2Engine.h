@@ -18,7 +18,8 @@ public:
 
   virtual void compile(const std::vector<Rule>&, size_t);
   virtual void init(size_t);
-  virtual size_t match(const char*, size_t, size_t, size_t);
+  virtual size_t match(const char*, size_t, size_t, size_t = 0,
+                       size_t* = nullptr);
 
 protected:
   struct PCRE2_DATA {

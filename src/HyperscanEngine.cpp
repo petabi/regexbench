@@ -116,7 +116,8 @@ HyperscanEngineStream::~HyperscanEngineStream()
     }
 }
 
-size_t HyperscanEngine::match(const char* data, size_t len, size_t, size_t thr)
+size_t HyperscanEngine::match(const char* data, size_t len, size_t, size_t thr,
+                              size_t* /*pId*/)
 {
   size_t nmatches = 0;
   hs_scan(db, data, static_cast<unsigned>(len), 0, scratches[thr], onMatch,
@@ -127,7 +128,7 @@ size_t HyperscanEngine::match(const char* data, size_t len, size_t, size_t thr)
 void HyperscanEngineStream::init(size_t nsessions_) { nsessions = nsessions_; }
 
 size_t HyperscanEngineStream::match(const char* data, size_t len, size_t sid,
-                                    size_t thr)
+                                    size_t thr, size_t* /*pId*/)
 {
   size_t nmatches = 0;
   hs_scan_stream(streams[sid], data, static_cast<unsigned>(len), 0,

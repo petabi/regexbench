@@ -18,7 +18,8 @@ public:
 
   virtual void compile(const std::vector<Rule>&, size_t = 1);
   virtual void load(const std::string&, size_t = 1);
-  virtual size_t match(const char*, size_t, size_t, size_t = 0);
+  virtual size_t match(const char*, size_t, size_t, size_t = 0,
+                       size_t* = nullptr);
 
 private:
   mregflow_t* flow;
@@ -39,7 +40,8 @@ public:
   virtual ~REmatchSOEngine();
 
   virtual void load(const std::string&, size_t = 1);
-  virtual size_t match(const char* data, size_t len, size_t, size_t = 0)
+  virtual size_t match(const char* data, size_t len, size_t, size_t = 0,
+                       size_t* = nullptr)
   {
     return run(data, len, ctx);
   }
@@ -58,7 +60,8 @@ public:
   virtual void init(size_t);
 
   using Engine::match;
-  virtual size_t match(const char*, size_t, size_t, size_t);
+  virtual size_t match(const char*, size_t, size_t, size_t = 0,
+                       size_t* = nullptr);
 
 private:
   static constexpr size_t unit_total = 1u << 17;
@@ -74,7 +77,8 @@ public:
 
   void compile(const std::vector<Rule>& rules, size_t = 1) override;
   void load(const std::string& file, size_t = 1) override;
-  size_t match(const char* pkt, size_t len, size_t, size_t = 0) override;
+  size_t match(const char* pkt, size_t len, size_t, size_t = 0,
+               size_t* = nullptr) override;
 
 private:
   rematch2_t* matcher;
