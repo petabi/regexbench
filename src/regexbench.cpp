@@ -194,6 +194,7 @@ int main(int argc, const char* argv[])
     coreIter++; // get rid of main thread
     boost::property_tree::ptree pt;
     prefix = prefix + ".";
+    pt.put(prefix + "Logging", args.log_file.empty() ? "Off" : "On");
     pt.put(prefix + "Repeat", args.repeat);
     std::string rulePrefix = prefix + "Rule.";
     pt.put(rulePrefix + "File", args.rule_file);
