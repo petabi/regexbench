@@ -81,6 +81,7 @@ static Arguments parse_options(int argc, const char* argv[]);
 int main(int argc, const char* argv[])
 {
   try {
+    std::string prefix;
     auto args = parse_options(argc, argv);
     std::unique_ptr<regexbench::Engine> engine;
     size_t nsessions = 0;
@@ -91,6 +92,7 @@ int main(int argc, const char* argv[])
     getrusage(RUSAGE_SELF, &compileBegin);
     switch (args.engine) {
     case EngineType::boost:
+      prefix = "boost";
       engine = std::make_unique<regexbench::BoostEngine>();
       engine->compile(regexbench::loadRules(args.rule_file), args.num_threads);
       break;
@@ -100,6 +102,7 @@ int main(int argc, const char* argv[])
       break;
 #ifdef HAVE_HYPERSCAN
     case EngineType::hyperscan:
+      prefix = "hyperscan";
       if (args.rematch_session) {
         engine = std::make_unique<regexbench::HyperscanEngineStream>();
         engine->init(nsessions);
@@ -111,6 +114,7 @@ int main(int argc, const char* argv[])
 #endif
 #ifdef HAVE_PCRE2
     case EngineType::pcre2:
+      prefix = "pcre2";
       engine = std::make_unique<regexbench::PCRE2Engine>();
       engine->init(args.pcre2_concat);
       engine->compile(regexbench::loadRules(args.rule_file), args.num_threads);
@@ -123,12 +127,14 @@ int main(int argc, const char* argv[])
 #endif
 #ifdef HAVE_RE2
     case EngineType::re2:
+      prefix = "re2";
       engine = std::make_unique<regexbench::RE2Engine>();
       engine->compile(regexbench::loadRules(args.rule_file), args.num_threads);
       break;
 #endif
 #ifdef HAVE_REMATCH
     case EngineType::rematch:
+      prefix = "rematch";
       if (args.rematch_session) {
 #ifdef WITH_SESSION
         engine = std::make_unique<regexbench::REmatchAutomataEngineSession>();
@@ -150,6 +156,7 @@ int main(int argc, const char* argv[])
       engine->init(nsessions);
       break;
     case EngineType::rematch2:
+      prefix = "rematch2";
       if (endsWith(args.rule_file, ".nfa")) {
         engine = std::make_unique<regexbench::REmatch2AutomataEngine>();
         engine->load(args.rule_file, args.num_threads);
@@ -166,18 +173,22 @@ int main(int argc, const char* argv[])
     struct timeval compileUdiff, compileSdiff;
     timersub(&(compileEnd.ru_utime), &(compileBegin.ru_utime), &compileUdiff);
     timersub(&(compileEnd.ru_stime), &(compileBegin.ru_stime), &compileSdiff);
+    auto compileTime =
+      (compileUdiff.tv_sec + compileSdiff.tv_sec +
+       (compileUdiff.tv_usec + compileSdiff.tv_usec) * 1e-6);
     std::cout << std::endl;
     std::cout << "Compile time : "
-              << (compileUdiff.tv_sec + compileSdiff.tv_sec +
-                  (compileUdiff.tv_usec + compileSdiff.tv_usec) * 1e-6)
+              << compileTime
               << std::endl
               << std::endl;
+    std::cout << "Pcap TotalBytes : " << pcap.getNumberOfBytes() << std::endl;
+    std::cout << "Pcap TotalPackets : " << pcap.getNumberOfPackets() << std::endl
+      << std::endl;
 
     std::string reportFields[]{
         "TotalMatches", "TotalMatchedPackets",  "UserTime",     "SystemTime",
-        "TotalTime",    "TotalBytes",           "TotalPackets", "Mbps",
+        "TotalTime",    "Mbps",
         "Mpps",         "MaximumMemoryUsed(kB)"};
-    std::string prefix = "regexbench.";
 
     std::vector<regexbench::MatchResult> results = match(
         *engine, pcap, args.repeat, args.cores, match_info, args.log_file);
@@ -185,10 +196,23 @@ int main(int argc, const char* argv[])
     auto coreIter = args.cores.begin();
     coreIter++; // get rid of main thread
     boost::property_tree::ptree pt;
+    prefix = prefix + ".";
+    pt.put(prefix + "Repeat", args.repeat);
+    std::string rulePrefix = prefix + "Rule.";
+    pt.put(rulePrefix + "File", args.rule_file);
+    pt.put(rulePrefix + "CompileTime", compileTime);
+    std::string pcapPrefix = prefix + "Pcap.";
+    pt.put(pcapPrefix + "File", args.pcap_file);
+    pt.put(pcapPrefix + "TotalBytes", pcap.getNumberOfBytes());
+    pt.put(pcapPrefix + "TotalPackets", pcap.getNumberOfPackets());
+    pt.put(prefix + "NumThreads", args.num_threads);
+    size_t coreInd = 0;
+    std::string threadsPrefix = prefix + "Threads.";
     for (const auto& result : results) {
       std::stringstream ss;
-      ss << "thread" << *coreIter++ << ".";
-      std::string corePrefix = prefix + ss.str();
+      ss << "Thread" << coreInd++ << ".";
+      std::string corePrefix = threadsPrefix + ss.str();
+      pt.put(corePrefix + "Core", *coreIter++);
       pt.put(corePrefix + "TotalMatches", result.nmatches);
       pt.put(corePrefix + "TotalMatchedPackets", result.nmatched_pkts);
       ss.str("");
@@ -205,8 +229,6 @@ int main(int argc, const char* argv[])
       t = total.tv_sec + total.tv_usec * 1e-6;
       ss << t;
       pt.put(corePrefix + "TotalTime", ss.str());
-      pt.put(corePrefix + "TotalBytes", pcap.getNumberOfBytes());
-      pt.put(corePrefix + "TotalPackets", pcap.getNumberOfPackets());
       ss.str("");
       ss << std::fixed << std::setprecision(6)
          << (static_cast<double>(pcap.getNumberOfBytes() *
