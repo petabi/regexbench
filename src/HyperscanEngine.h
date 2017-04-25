@@ -11,6 +11,11 @@
 
 namespace regexbench {
 
+struct match_handler_context {
+  size_t nmatches = 0;
+  size_t id = 0;
+};
+
 class HyperscanEngine : public Engine {
 public:
   HyperscanEngine();

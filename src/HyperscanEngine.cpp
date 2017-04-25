@@ -8,11 +8,12 @@
 
 using namespace regexbench;
 
-static int onMatch(unsigned int, unsigned long long, unsigned long long,
+static int onMatch(unsigned int id, unsigned long long, unsigned long long,
                    unsigned int, void* ctx)
 {
-  size_t& nmatches = *static_cast<size_t*>(ctx);
-  nmatches++;
+  match_handler_context& matchCtx = *static_cast<match_handler_context*>(ctx);
+  matchCtx.nmatches = 1;
+  matchCtx.id = id;
   return 0;
 }
 
@@ -117,21 +118,25 @@ HyperscanEngineStream::~HyperscanEngineStream()
 }
 
 size_t HyperscanEngine::match(const char* data, size_t len, size_t, size_t thr,
-                              size_t* /*pId*/)
+                              size_t* pId)
 {
-  size_t nmatches = 0;
+  match_handler_context matchCtx;
   hs_scan(db, data, static_cast<unsigned>(len), 0, scratches[thr], onMatch,
-          &nmatches);
-  return nmatches > 0;
+          &matchCtx);
+  if (matchCtx.nmatches && pId)
+    *pId = matchCtx.id;
+  return matchCtx.nmatches > 0;
 }
 
 void HyperscanEngineStream::init(size_t nsessions_) { nsessions = nsessions_; }
 
 size_t HyperscanEngineStream::match(const char* data, size_t len, size_t sid,
-                                    size_t thr, size_t* /*pId*/)
+                                    size_t thr, size_t* pId)
 {
-  size_t nmatches = 0;
+  match_handler_context matchCtx;
   hs_scan_stream(streams[sid], data, static_cast<unsigned>(len), 0,
-                 scratches[thr], onMatch, &nmatches);
-  return nmatches > 0;
+                 scratches[thr], onMatch, &matchCtx);
+  if (matchCtx.nmatches && pId)
+    *pId = matchCtx.id;
+  return matchCtx.nmatches > 0;
 }
