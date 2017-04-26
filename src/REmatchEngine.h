@@ -76,6 +76,7 @@ public:
   ~REmatch2AutomataEngine();
 
   void compile(const std::vector<Rule>& rules, size_t = 1) override;
+  void compile_test(const std::vector<Rule>&) const override;
   void load(const std::string& file, size_t = 1) override;
   size_t match(const char* pkt, size_t len, size_t, size_t = 0,
                size_t* = nullptr) override;

@@ -40,6 +40,7 @@ public:
   }
 
   virtual void compile(const std::vector<Rule>&, size_t = 1);
+  void compile_test(const std::vector<Rule>&) const;
   virtual size_t match(const char*, size_t, size_t, size_t = 0,
                        size_t* = nullptr);
 

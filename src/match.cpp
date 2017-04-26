@@ -114,6 +114,16 @@ std::vector<MatchMeta> regexbench::buildMatchMeta(const PcapSource& src,
   return matcher_info;
 }
 
+void regexbench::compile_test_thread(const Engine* engine,
+                                     const std::string rule_file,
+                                     uint32_t compile_cnt)
+{
+  for (size_t cnt = 0; cnt < compile_cnt; ++cnt) {
+    std::cout << "Compile test count " << cnt << std::endl;
+    engine->compile_test(regexbench::loadRules(rule_file));
+  }
+}
+
 #if 0
 MatchResult regexbench::match(Engine& engine, const PcapSource& src,
                               long repeat, const std::vector<MatchMeta>& meta)

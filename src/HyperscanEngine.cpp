@@ -97,6 +97,39 @@ void HyperscanEngine::compile(const std::vector<Rule>& rules, size_t numThr)
   }
 }
 
+void HyperscanEngine::compile_test(const std::vector<Rule>& rules) const
+{
+  std::vector<const char*> exps;
+  std::vector<unsigned> flags;
+  std::vector<unsigned> ids;
+  for (const auto& rule : rules) {
+    exps.push_back(rule.getRegexp().data());
+    ids.push_back(static_cast<unsigned>(rule.getID()));
+    unsigned flag = HS_FLAG_ALLOWEMPTY;
+    if (rule.isSet(MOD_CASELESS))
+      flag |= HS_FLAG_CASELESS;
+    if (rule.isSet(MOD_MULTILINE))
+      flag |= HS_FLAG_MULTILINE;
+    if (rule.isSet(MOD_DOTALL))
+      flag |= HS_FLAG_DOTALL;
+    flags.push_back(flag);
+  }
+
+  hs_compile_error_t* err;
+  hs_database_t* pDb = nullptr;
+  hs_platform_info_t pfm;
+  unsigned int mode = HS_MODE_BLOCK;
+
+  if (nsessions)
+    mode = HS_MODE_STREAM;
+
+  auto result = hs_compile_multi(exps.data(), flags.data(), ids.data(),
+                                 static_cast<unsigned>(exps.size()), mode, &pfm,
+                                 &pDb, &err);
+  if (result == HS_SUCCESS && pDb)
+    hs_free_database(pDb);
+}
+
 void HyperscanEngineStream::compile(const std::vector<Rule>& rules,
                                     size_t numThr)
 {

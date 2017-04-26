@@ -47,6 +47,8 @@ std::vector<MatchResult> match(Engine&, const PcapSource&, long,
                                const std::vector<size_t>&,
                                const std::vector<MatchMeta>&,
                                const std::string&);
+void compile_test_thread(const Engine* engine, const std::string rule_file,
+                         uint32_t compile_cnt);
 }
 
 #endif // REGEXBENCH_H

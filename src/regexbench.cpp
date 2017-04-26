@@ -62,6 +62,7 @@ struct Arguments {
   uint32_t pcre2_concat;
   uint32_t rematch_session;
   uint32_t num_threads;
+  uint32_t compile_test;
   std::vector<size_t> cores;
   bool reduce = {true};
   char paddings[7];
@@ -182,6 +183,11 @@ int main(int argc, const char* argv[])
               << std::endl
               << std::endl;
 
+    // do compile test here
+    auto compile_test_thr =
+        std::thread(&regexbench::compile_test_thread, engine.get(),
+                    args.rule_file, args.compile_test);
+
     std::string reportFields[]{"TotalMatches", "TotalMatchedPackets",
                                "UserTime",     "SystemTime",
                                "TotalTime",    "Mbps",
@@ -258,6 +264,8 @@ int main(int argc, const char* argv[])
     write_json(buf, pt, true);
     std::ofstream outputFile(args.output_file, std::ios_base::trunc);
     outputFile << buf.str();
+
+    compile_test_thr.join();
   } catch (const std::exception& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
@@ -373,6 +381,9 @@ Arguments parse_options(int argc, const char* argv[])
   optargs.add_options()("reduce,R",
                         po::value<bool>(&args.reduce)->default_value(true),
                         "Use REduce with REmatch, default is false");
+  optargs.add_options()(
+      "compile,t", po::value<uint32_t>(&args.compile_test)->default_value(0),
+      "Compile test");
   po::options_description cliargs;
   cliargs.add(posargs).add(optargs);
   po::variables_map vm;

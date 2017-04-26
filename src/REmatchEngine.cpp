@@ -205,8 +205,33 @@ void REmatch2AutomataEngine::compile(const std::vector<Rule>& rules,
   rematch2Save(matcher, "tmpsave.nfa");
   rematch2Free(matcher);
   load("tmpsave.nfa", numThr);
-  //numThreads = numThr;
-  //contexts.resize(numThreads, nullptr);
+  // numThreads = numThr;
+  // contexts.resize(numThreads, nullptr);
+}
+
+void REmatch2AutomataEngine::compile_test(const std::vector<Rule>& rules) const
+{
+  std::vector<const char*> exps;
+  std::vector<unsigned> mods;
+  std::vector<unsigned> ids;
+  for (const auto& rule : rules) {
+    exps.push_back(rule.getRegexp().data());
+    ids.push_back(static_cast<unsigned>(rule.getID()));
+    uint32_t opt = 0;
+    if (rule.isSet(MOD_CASELESS))
+      opt |= REMATCH_MOD_CASELESS;
+    if (rule.isSet(MOD_MULTILINE))
+      opt |= REMATCH_MOD_MULTILINE;
+    if (rule.isSet(MOD_DOTALL))
+      opt |= REMATCH_MOD_DOTALL;
+    mods.push_back(opt);
+  }
+  auto testMatcher = rematch2_compile(ids.data(), exps.data(), mods.data(),
+                                      ids.size(), reduce);
+  if (testMatcher == nullptr) {
+    throw std::runtime_error("Could not build REmatch2 matcher.");
+  }
+  rematch2Free(testMatcher);
 }
 
 void REmatch2AutomataEngine::load(const std::string& file, size_t numThr)
