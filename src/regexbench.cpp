@@ -216,9 +216,9 @@ int main(int argc, const char* argv[])
     std::string rulePrefix = prefix + "Rule.";
     pt.put(rulePrefix + "File", args.rule_file);
     pt.put(rulePrefix + "CompileTime", compileTime);
-    if (args.engine == EngineType::rematch ||
-        args.engine == EngineType::rematch2)
-      pt.put(rulePrefix + "Reduce", args.reduce ? "On" : "Off");
+    if (args.reduce && (args.engine == EngineType::rematch ||
+                        args.engine == EngineType::rematch2))
+      pt.put(rulePrefix + "Reduce", "On");
     std::string pcapPrefix = prefix + "Pcap.";
     pt.put(pcapPrefix + "File", args.pcap_file);
     pt.put(pcapPrefix + "TotalBytes", pcap.getNumberOfBytes());
@@ -357,6 +357,7 @@ Arguments parse_options(int argc, const char* argv[])
 {
   Arguments args;
   std::string engine;
+  std::string prefix;
   std::string affinity;
 
   po::options_description posargs;
@@ -381,9 +382,11 @@ Arguments parse_options(int argc, const char* argv[])
   optargs.add_options()(
       "session,s", po::value<uint32_t>(&args.rematch_session)->default_value(0),
       "Rematch session mode.");
+  optargs.add_options()("prefix,p",
+                        po::value<std::string>(&prefix)->default_value(""),
+                        "Prefix to output json file name");
   optargs.add_options()(
-      "output,o",
-      po::value<std::string>(&args.output_file)->default_value("output.json"),
+      "output,o", po::value<std::string>(&args.output_file)->default_value(""),
       "Output JSON file.");
   optargs.add_options()(
       "logfile,l", po::value<std::string>(&args.log_file)->default_value(""),
@@ -471,6 +474,26 @@ Arguments parse_options(int argc, const char* argv[])
     args.rematch_session = 0;
   }
 #endif
+
+  if (args.output_file.empty()) {
+    std::string name = prefix;
+    if (!name.empty())
+      name += "-";
+    name += engine + "-";
+    auto basename = args.rule_file;
+    auto pos = basename.find_last_of("/\\");
+    basename = basename.substr((pos == std::string::npos) ? 0 : pos + 1);
+    name += basename + "-"; // rule
+    basename = args.pcap_file;
+    pos = basename.find_last_of("/\\");
+    basename = basename.substr((pos == std::string::npos) ? 0 : pos + 1);
+    name += basename + "-";                               // pcap
+    name += "N" + std::to_string(args.num_threads) + "-"; // num threads
+    name += "R" + std::to_string(args.repeat) + ".json";  // repeat
+
+    args.output_file = name;
+    std::cout << "Output file name is " << args.output_file << std::endl;
+  }
 
   if (!vm.count("rule_file")) {
     std::cerr << "error: no rule file" << std::endl;
