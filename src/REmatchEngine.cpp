@@ -203,12 +203,11 @@ void REmatch2AutomataEngine::compile(const std::vector<Rule>& rules,
   if (matcher == nullptr) {
     throw std::runtime_error("Could not build REmatch2 matcher.");
   }
-  // temporary fix (uncomment below thread number assignment after proper fix)
-  rematch2Save(matcher, "tmpsave.nfa");
-  rematch2Free(matcher);
-  load("tmpsave.nfa", numThr);
-  // numThreads = numThr;
-  // contexts.resize(numThreads, nullptr);
+  matchers[version + 1] = matcher;
+  version++;
+  numThreads = numThr;
+  contexts.resize(numThreads, nullptr);
+  versions.resize(numThreads, version - 1);
 }
 
 void REmatch2AutomataEngine::compile_test(const std::vector<Rule>& rules) const
@@ -265,8 +264,8 @@ void REmatch2AutomataEngine::update_test(const std::vector<Rule>& rules)
 
 void REmatch2AutomataEngine::load(const std::string& file, size_t numThr)
 {
+  auto matcher = matchers[version + 1] = rematch2Load(file.c_str());
   version++;
-  auto matcher = matchers[version] = rematch2Load(file.c_str());
   if (matcher == nullptr)
     throw std::runtime_error("Could not load REmatch2 matcher.");
   numThreads = numThr;
@@ -279,8 +278,8 @@ void REmatch2AutomataEngine::load_updated(const std::string& file)
   auto matcher = rematch2Load(file.c_str());
   if (matcher == nullptr)
     throw std::runtime_error("Could not load REmatch2 matcher.");
+  matchers[version + 1] = matcher;
   version++;
-  matchers[version] = matcher;
   std::cout << "Rule update to be applied" << std::endl;
 }
 
