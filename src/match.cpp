@@ -12,15 +12,18 @@
 #include <pthread_np.h>
 #endif
 #include <sched.h>
+#include <signal.h>
 #ifdef __FreeBSD__
 #include <sys/cpuset.h>
 #endif
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include <condition_variable>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 #include "Engine.h"
@@ -124,6 +127,39 @@ void regexbench::compile_test_thread(const Engine* engine,
   }
 }
 
+std::mutex online_update_mtx;
+std::condition_variable online_update_cv;
+bool doUpdate = false;
+bool reallyUpdate = false;
+
+void regexbench::online_update_thread(Engine* engine,
+                                     const std::string orig_file,
+                                     const std::string update_file)
+{
+  std::unique_lock<std::mutex> lk(online_update_mtx);
+  // TODO : maybe we should implement while loop if necessary
+  online_update_cv.wait(lk, []{return doUpdate;});
+
+  //std::cout << "Online update thread signalled!!" << std::endl;
+  if (!reallyUpdate) {
+    //std::cout << "Online update terminating w/o updating" << std::endl;
+    lk.unlock();
+    return;
+  }
+  lk.unlock();
+
+  std::ifstream origIs(orig_file);
+  std::ifstream updateIs(update_file);
+  std::string combined_rule_file = "tempmerge.rule";
+  std::ofstream combinedOs(combined_rule_file);
+
+  combinedOs << origIs.rdbuf() << updateIs.rdbuf();
+  combinedOs.close();
+
+  engine->update_test(regexbench::loadRules(combined_rule_file));
+}
+
+
 #if 0
 MatchResult regexbench::match(Engine& engine, const PcapSource& src,
                               long repeat, const std::vector<MatchMeta>& meta)
@@ -192,6 +228,23 @@ void regexbench::matchThread(Engine* engine, const PcapSource* src, long repeat,
 }
 #endif
 
+
+void regexbench::signal_update_thread(bool really_update)
+{
+  std::unique_lock<std::mutex> lk(online_update_mtx);
+  doUpdate = true;
+  reallyUpdate = really_update; // TODO this is ugly : revisit!
+  lk.unlock();
+  online_update_cv.notify_one();
+}
+
+static void sigusr1_handler(int /*sig*/)
+{
+  std::cout << "sigusr1" << std::endl;
+  signal_update_thread(true);
+}
+
+
 std::vector<MatchResult> regexbench::match(Engine& engine,
                                            const PcapSource& src, long repeat,
                                            const std::vector<size_t>& cores,
@@ -227,6 +280,20 @@ std::vector<MatchResult> regexbench::match(Engine& engine,
   }
 #endif
 
+  // signal handling for USR1
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(struct sigaction));
+  sa.sa_handler = sigusr1_handler;
+  sa.sa_flags = 0; /* clear SA_RESTART flag */
+  sigaction(SIGUSR1, &sa, NULL);
+
+  sigset_t sigset;
+  sigemptyset(&sigset);
+  sigaddset(&sigset, SIGUSR1);
+  // Every threads will inherit the following signal mask
+  pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+
+  // logger setting
   std::unique_ptr<Logger> pLogger;
 
   if (!logfile.empty()) {
@@ -240,6 +307,9 @@ std::vector<MatchResult> regexbench::match(Engine& engine,
                                   repeat, *coreIter, i, &meta, &results[i],
                                   (pLogger ? pLogger.get() : nullptr)));
   }
+
+  pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
+
   for (auto& thr : threads)
     thr.join();
 

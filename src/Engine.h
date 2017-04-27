@@ -14,6 +14,7 @@ public:
 
   virtual void compile(const std::vector<Rule>&, size_t = 1) {}
   virtual void compile_test(const std::vector<Rule>&) const {}
+  virtual void update_test(const std::vector<Rule>&) {}
   virtual void init(size_t) {}
   virtual size_t getNumThreads() { return numThreads; }
   virtual void load(const std::string&, size_t = 1) {}

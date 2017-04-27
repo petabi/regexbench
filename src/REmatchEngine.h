@@ -2,6 +2,9 @@
 #ifndef REGEXBENCH_REMATCHENGINE_H
 #define REGEXBENCH_REMATCHENGINE_H
 
+#include <atomic>
+#include <map>
+
 #include <rematch/compile.h>
 #include <rematch/execute.h>
 #include <rematch/rematch.h>
@@ -77,13 +80,19 @@ public:
 
   void compile(const std::vector<Rule>& rules, size_t = 1) override;
   void compile_test(const std::vector<Rule>&) const override;
+  void update_test(const std::vector<Rule>&) override;
   void load(const std::string& file, size_t = 1) override;
   size_t match(const char* pkt, size_t len, size_t, size_t = 0,
                size_t* = nullptr) override;
 
 private:
-  rematch2_t* matcher;
+  void load_updated(const std::string& file);
+
+  //rematch2_t* matcher;
+  std::map<int, rematch2_t*> matchers;
   std::vector<rematch_match_context_t*> contexts;
+  std::atomic_int version;
+  std::vector<int> versions;
   bool reduce = false;
 
 protected:

@@ -49,6 +49,10 @@ std::vector<MatchResult> match(Engine&, const PcapSource&, long,
                                const std::string&);
 void compile_test_thread(const Engine* engine, const std::string rule_file,
                          uint32_t compile_cnt);
+
+void online_update_thread(Engine* engine, const std::string orig_file,
+                         const std::string update_file);
+void signal_update_thread(bool really_update = false);
 }
 
 #endif // REGEXBENCH_H

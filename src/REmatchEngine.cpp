@@ -1,5 +1,6 @@
 #include <dlfcn.h>
 
+#include <iostream>
 #include <stdexcept>
 
 #include <dlfcn.h>
@@ -168,14 +169,15 @@ void REmatchAutomataEngineSession::init(size_t nsessions)
 #endif // WITH_SESSION
 
 REmatch2AutomataEngine::REmatch2AutomataEngine(bool red)
-    : matcher(nullptr), reduce(red)
+    : version(0), reduce(red)
 {
 }
 REmatch2AutomataEngine::~REmatch2AutomataEngine()
 {
   for (auto context : contexts)
     rematch2ContextFree(context);
-  rematch2Free(matcher);
+  for (auto matcher : matchers)
+    rematch2Free(matcher.second);
 }
 
 void REmatch2AutomataEngine::compile(const std::vector<Rule>& rules,
@@ -196,7 +198,7 @@ void REmatch2AutomataEngine::compile(const std::vector<Rule>& rules,
       opt |= REMATCH_MOD_DOTALL;
     mods.push_back(opt);
   }
-  matcher = rematch2_compile(ids.data(), exps.data(), mods.data(), ids.size(),
+  auto matcher = rematch2_compile(ids.data(), exps.data(), mods.data(), ids.size(),
                              reduce);
   if (matcher == nullptr) {
     throw std::runtime_error("Could not build REmatch2 matcher.");
@@ -234,25 +236,71 @@ void REmatch2AutomataEngine::compile_test(const std::vector<Rule>& rules) const
   rematch2Free(testMatcher);
 }
 
+void REmatch2AutomataEngine::update_test(const std::vector<Rule>& rules)
+{
+  std::vector<const char*> exps;
+  std::vector<unsigned> mods;
+  std::vector<unsigned> ids;
+  for (const auto& rule : rules) {
+    exps.push_back(rule.getRegexp().data());
+    ids.push_back(static_cast<unsigned>(rule.getID()));
+    uint32_t opt = 0;
+    if (rule.isSet(MOD_CASELESS))
+      opt |= REMATCH_MOD_CASELESS;
+    if (rule.isSet(MOD_MULTILINE))
+      opt |= REMATCH_MOD_MULTILINE;
+    if (rule.isSet(MOD_DOTALL))
+      opt |= REMATCH_MOD_DOTALL;
+    mods.push_back(opt);
+  }
+  auto tmp_matcher = rematch2_compile(ids.data(), exps.data(), mods.data(), ids.size(),
+                             reduce);
+  if (tmp_matcher == nullptr) {
+    throw std::runtime_error("Could not build REmatch2 matcher.");
+  }
+  rematch2Save(tmp_matcher, "tmpsave.nfa");
+  rematch2Free(tmp_matcher);
+  load_updated("tmpsave.nfa");
+}
+
 void REmatch2AutomataEngine::load(const std::string& file, size_t numThr)
 {
-  matcher = rematch2Load(file.c_str());
+  version++;
+  auto matcher = matchers[version] = rematch2Load(file.c_str());
   if (matcher == nullptr)
     throw std::runtime_error("Could not load REmatch2 matcher.");
   numThreads = numThr;
   contexts.resize(numThreads, nullptr);
+  versions.resize(numThreads, version - 1);
+}
+
+void REmatch2AutomataEngine::load_updated(const std::string& file)
+{
+  auto matcher = rematch2Load(file.c_str());
+  if (matcher == nullptr)
+    throw std::runtime_error("Could not load REmatch2 matcher.");
+  version++;
+  matchers[version] = matcher;
+  std::cout << "Rule update to be applied" << std::endl;
 }
 
 size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,
                                      size_t thr, size_t* pId)
 {
   auto context = contexts[thr];
-  if (__builtin_expect((context == nullptr), false)) {
-    context = contexts[thr] = rematch2ContextInit(matcher, 1);
+  auto& cur_version = versions[thr];
+  if (__builtin_expect((version > cur_version), false)) {
+    //std::cout << "Context update to be done" << std::endl;
+    cur_version = version;
+    //  if prev one is to be freed, then free it first
+    if (context)
+      rematch2ContextFree(context);
+    context = contexts[thr] = rematch2ContextInit(matchers[cur_version], 1);
     if (context == nullptr)
       throw std::runtime_error("Could not initialize context.");
   }
-  rematch_scan_block(matcher, pkt, len, context);
+  auto cur_matcher = matchers[cur_version];
+  rematch_scan_block(cur_matcher, pkt, len, context);
   size_t matched = context->num_matches;
   if (context->num_matches > 0)
     *pId = context->matchlist[0].fid;

@@ -57,6 +57,7 @@ struct Arguments {
   std::string log_file;
   std::string pcap_file;
   std::string rule_file;
+  std::string update_file;
   EngineType engine;
   int32_t repeat;
   uint32_t pcre2_concat;
@@ -187,6 +188,23 @@ int main(int argc, const char* argv[])
     auto compile_test_thr =
         std::thread(&regexbench::compile_test_thread, engine.get(),
                     args.rule_file, args.compile_test);
+    // launch online update thread (if specified)
+    std::thread update_thr;
+    if (!args.update_file.empty()) {
+
+      // for a test
+      //std::ifstream origIs(args.rule_file);
+      //std::ifstream updateIs(args.update_file);
+      //std::string combined_rule_file = "tempmerge.rule";
+      //std::ofstream combinedOs(combined_rule_file);
+
+      //combinedOs << origIs.rdbuf() << updateIs.rdbuf();
+      //combinedOs.close();
+
+
+      update_thr = std::thread(&regexbench::online_update_thread, engine.get(),
+          args.rule_file, args.update_file);
+    }
 
     std::string reportFields[]{"TotalMatches", "TotalMatchedPackets",
                                "UserTime",     "SystemTime",
@@ -266,6 +284,11 @@ int main(int argc, const char* argv[])
     outputFile << buf.str();
 
     compile_test_thr.join();
+    if (!args.update_file.empty()) {
+      regexbench::signal_update_thread();
+      update_thr.join();
+    }
+
   } catch (const std::exception& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
@@ -384,6 +407,9 @@ Arguments parse_options(int argc, const char* argv[])
   optargs.add_options()(
       "compile,t", po::value<uint32_t>(&args.compile_test)->default_value(0),
       "Compile test");
+  optargs.add_options()(
+      "update,u", po::value<std::string>(&args.update_file)->default_value(""),
+      "Online update file");
   po::options_description cliargs;
   cliargs.add(posargs).add(optargs);
   po::variables_map vm;
