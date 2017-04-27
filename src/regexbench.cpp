@@ -65,7 +65,7 @@ struct Arguments {
   uint32_t num_threads;
   uint32_t compile_test;
   std::vector<size_t> cores;
-  bool reduce = {true};
+  bool reduce = {false};
   char paddings[7];
 };
 
@@ -401,7 +401,7 @@ Arguments parse_options(int argc, const char* argv[])
                         po::value<std::string>(&affinity)->default_value("0"),
                         "Core affinity assignment (starting from main thread)");
   optargs.add_options()("reduce,R",
-                        po::value<bool>(&args.reduce)->default_value(true),
+                        po::value<bool>(&args.reduce)->default_value(false),
                         "Use REduce with REmatch, default is false");
   optargs.add_options()(
       "compile,t", po::value<uint32_t>(&args.compile_test)->default_value(0),
