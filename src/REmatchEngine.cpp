@@ -198,8 +198,8 @@ void REmatch2AutomataEngine::compile(const std::vector<Rule>& rules,
       opt |= REMATCH_MOD_DOTALL;
     mods.push_back(opt);
   }
-  auto matcher = rematch2_compile(ids.data(), exps.data(), mods.data(), ids.size(),
-                             reduce);
+  auto matcher = rematch2_compile(ids.data(), exps.data(), mods.data(),
+                                  ids.size(), reduce);
   if (matcher == nullptr) {
     throw std::runtime_error("Could not build REmatch2 matcher.");
   }
@@ -253,8 +253,8 @@ void REmatch2AutomataEngine::update_test(const std::vector<Rule>& rules)
       opt |= REMATCH_MOD_DOTALL;
     mods.push_back(opt);
   }
-  auto tmp_matcher = rematch2_compile(ids.data(), exps.data(), mods.data(), ids.size(),
-                             reduce);
+  auto tmp_matcher = rematch2_compile(ids.data(), exps.data(), mods.data(),
+                                      ids.size(), reduce);
   if (tmp_matcher == nullptr) {
     throw std::runtime_error("Could not build REmatch2 matcher.");
   }
@@ -290,7 +290,7 @@ size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,
   auto context = contexts[thr];
   auto& cur_version = versions[thr];
   if (__builtin_expect((version > cur_version), false)) {
-    //std::cout << "Context update to be done" << std::endl;
+    // std::cout << "Context update to be done" << std::endl;
     cur_version = version;
     //  if prev one is to be freed, then free it first
     if (context)

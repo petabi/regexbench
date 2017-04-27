@@ -88,7 +88,7 @@ public:
 private:
   void load_updated(const std::string& file);
 
-  //rematch2_t* matcher;
+  // rematch2_t* matcher;
   std::map<int, rematch2_t*> matchers;
   std::vector<rematch_match_context_t*> contexts;
   std::atomic_int version;

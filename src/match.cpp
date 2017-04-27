@@ -133,16 +133,16 @@ bool doUpdate = false;
 bool reallyUpdate = false;
 
 void regexbench::online_update_thread(Engine* engine,
-                                     const std::string orig_file,
-                                     const std::string update_file)
+                                      const std::string orig_file,
+                                      const std::string update_file)
 {
   std::unique_lock<std::mutex> lk(online_update_mtx);
   // TODO : maybe we should implement while loop if necessary
-  online_update_cv.wait(lk, []{return doUpdate;});
+  online_update_cv.wait(lk, [] { return doUpdate; });
 
-  //std::cout << "Online update thread signalled!!" << std::endl;
+  // std::cout << "Online update thread signalled!!" << std::endl;
   if (!reallyUpdate) {
-    //std::cout << "Online update terminating w/o updating" << std::endl;
+    // std::cout << "Online update terminating w/o updating" << std::endl;
     lk.unlock();
     return;
   }
@@ -158,7 +158,6 @@ void regexbench::online_update_thread(Engine* engine,
 
   engine->update_test(regexbench::loadRules(combined_rule_file));
 }
-
 
 #if 0
 MatchResult regexbench::match(Engine& engine, const PcapSource& src,
@@ -228,7 +227,6 @@ void regexbench::matchThread(Engine* engine, const PcapSource* src, long repeat,
 }
 #endif
 
-
 void regexbench::signal_update_thread(bool really_update)
 {
   std::unique_lock<std::mutex> lk(online_update_mtx);
@@ -243,7 +241,6 @@ static void sigusr1_handler(int /*sig*/)
   std::cout << "sigusr1" << std::endl;
   signal_update_thread(true);
 }
-
 
 std::vector<MatchResult> regexbench::match(Engine& engine,
                                            const PcapSource& src, long repeat,

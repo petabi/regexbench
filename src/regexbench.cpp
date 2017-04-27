@@ -193,17 +193,16 @@ int main(int argc, const char* argv[])
     if (!args.update_file.empty()) {
 
       // for a test
-      //std::ifstream origIs(args.rule_file);
-      //std::ifstream updateIs(args.update_file);
-      //std::string combined_rule_file = "tempmerge.rule";
-      //std::ofstream combinedOs(combined_rule_file);
+      // std::ifstream origIs(args.rule_file);
+      // std::ifstream updateIs(args.update_file);
+      // std::string combined_rule_file = "tempmerge.rule";
+      // std::ofstream combinedOs(combined_rule_file);
 
-      //combinedOs << origIs.rdbuf() << updateIs.rdbuf();
-      //combinedOs.close();
-
+      // combinedOs << origIs.rdbuf() << updateIs.rdbuf();
+      // combinedOs.close();
 
       update_thr = std::thread(&regexbench::online_update_thread, engine.get(),
-          args.rule_file, args.update_file);
+                               args.rule_file, args.update_file);
     }
 
     std::string reportFields[]{"TotalMatches", "TotalMatchedPackets",
