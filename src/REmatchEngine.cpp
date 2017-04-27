@@ -260,9 +260,10 @@ void REmatch2AutomataEngine::update_test(const std::vector<Rule>& rules)
   if (tmp_matcher == nullptr) {
     throw std::runtime_error("Could not build REmatch2 matcher.");
   }
-  rematch2Save(tmp_matcher, "tmpsave.nfa");
-  rematch2Free(tmp_matcher);
-  load_updated("tmpsave.nfa");
+
+  matchers[version + 1] = tmp_matcher;
+  version++;
+  std::cout << "Rule update soon to be applied" << std::endl;
 }
 
 void REmatch2AutomataEngine::load(const std::string& file, size_t numThr)
@@ -283,7 +284,7 @@ void REmatch2AutomataEngine::load_updated(const std::string& file)
     throw std::runtime_error("Could not load REmatch2 matcher.");
   matchers[version + 1] = matcher;
   version++;
-  std::cout << "Rule update to be applied" << std::endl;
+  std::cout << "Rule update soon to be applied" << std::endl;
 }
 
 size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,

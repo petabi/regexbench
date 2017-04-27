@@ -89,10 +89,12 @@ public:
                size_t* = nullptr) override;
 
 private:
-  void load_updated(const std::string& file);
+  void load_updated(const std::string& file); // for possible use
 
   const uint32_t nmatch;
-  std::map<int, rematch2_t*> matchers;
+  std::map<int, rematch2_t*> matchers; // TODO: we need to implement
+                                       // garbage collector to reap
+                                       // outdated matchers
   std::vector<rematch_match_context_t*> contexts;
   std::atomic_int version;
   std::vector<int> versions;
