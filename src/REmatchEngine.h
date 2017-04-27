@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <map>
+#include <memory>
 
 #include <rematch/compile.h>
 #include <rematch/execute.h>
@@ -16,7 +17,7 @@ namespace regexbench {
 
 class REmatchAutomataEngine : public Engine {
 public:
-  REmatchAutomataEngine(bool red = false);
+  REmatchAutomataEngine(uint32_t nm = 1, bool red = false);
   virtual ~REmatchAutomataEngine();
 
   virtual void compile(const std::vector<Rule>&, size_t = 1);
@@ -30,7 +31,9 @@ private:
 
 protected:
   mregex_t* txtbl;
-  mregmatch_t regmatch[1];
+  const uint32_t nmatch;
+  std::unique_ptr<mregmatch_t[]> regmatchMem;
+  mregmatch_t* regmatch;
   bool reduce = false;
   char __padding[7];
 };
@@ -58,7 +61,7 @@ private:
 #ifdef WITH_SESSION
 class REmatchAutomataEngineSession : public REmatchAutomataEngine {
 public:
-  REmatchAutomataEngineSession();
+  REmatchAutomataEngineSession(uint32_t nm = 1);
   virtual ~REmatchAutomataEngineSession();
   virtual void init(size_t);
 
@@ -75,7 +78,7 @@ private:
 
 class REmatch2AutomataEngine : public Engine {
 public:
-  REmatch2AutomataEngine(bool red = false);
+  REmatch2AutomataEngine(uint32_t nm = 1, bool red = false);
   ~REmatch2AutomataEngine();
 
   void compile(const std::vector<Rule>& rules, size_t = 1) override;
@@ -88,7 +91,7 @@ public:
 private:
   void load_updated(const std::string& file);
 
-  // rematch2_t* matcher;
+  const uint32_t nmatch;
   std::map<int, rematch2_t*> matchers;
   std::vector<rematch_match_context_t*> contexts;
   std::atomic_int version;

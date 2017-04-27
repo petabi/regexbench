@@ -1,6 +1,7 @@
 #include <dlfcn.h>
 
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 
 #include <dlfcn.h>
@@ -16,8 +17,10 @@ using namespace regexbench;
 const char NFA_FUNC_NAME[] = "run";
 const char NFA_NSTATES_NAME[] = "nstates";
 
-REmatchAutomataEngine::REmatchAutomataEngine(bool red)
-    : flow(nullptr), matcher(nullptr), txtbl(nullptr), reduce(red)
+REmatchAutomataEngine::REmatchAutomataEngine(uint32_t nm, bool red)
+    : flow(nullptr), matcher(nullptr), txtbl(nullptr), nmatch(nm),
+      regmatchMem(std::make_unique<mregmatch_t[]>(nm)),
+      regmatch(regmatchMem.get()), reduce(red)
 {
 }
 
@@ -71,7 +74,7 @@ void REmatchAutomataEngine::load(const std::string& filename, size_t)
 size_t REmatchAutomataEngine::match(const char* data, size_t len, size_t,
                                     size_t /*thr*/, size_t* /*pId*/)
 {
-  mregexec_single(txtbl, data, len, 1, regmatch, matcher, flow);
+  mregexec_single(txtbl, data, len, nmatch, regmatch, matcher, flow);
   return matcher->matches;
 }
 
@@ -117,8 +120,8 @@ void REmatchSOEngine::load(const std::string& filename, size_t)
 }
 
 #ifdef WITH_SESSION
-REmatchAutomataEngineSession::REmatchAutomataEngineSession()
-    : parent{nullptr}, child{nullptr}
+REmatchAutomataEngineSession::REmatchAutomataEngineSession(uint32_t nm)
+    : REmatchAutomataEngine(nm), parent{nullptr}, child{nullptr}
 {
 }
 REmatchAutomataEngineSession::~REmatchAutomataEngineSession()
@@ -133,7 +136,7 @@ size_t REmatchAutomataEngineSession::match(const char* pkt, size_t len,
 {
   matcher_t* cur = child->mindex[idx];
   size_t ret = 0;
-  switch (mregexec_session(txtbl, pkt, len, 1, regmatch, cur, child)) {
+  switch (mregexec_session(txtbl, pkt, len, nmatch, regmatch, cur, child)) {
   case MREG_FINISHED: // finished
     cur->num_active = 0;
     ret = cur->matches;
@@ -168,8 +171,8 @@ void REmatchAutomataEngineSession::init(size_t nsessions)
 }
 #endif // WITH_SESSION
 
-REmatch2AutomataEngine::REmatch2AutomataEngine(bool red)
-    : version(0), reduce(red)
+REmatch2AutomataEngine::REmatch2AutomataEngine(uint32_t nm, bool red)
+    : nmatch(nm), version(0), reduce(red)
 {
 }
 REmatch2AutomataEngine::~REmatch2AutomataEngine()
@@ -294,7 +297,8 @@ size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,
     //  if prev one is to be freed, then free it first
     if (context)
       rematch2ContextFree(context);
-    context = contexts[thr] = rematch2ContextInit(matchers[cur_version], 1);
+    context = contexts[thr] =
+        rematch2ContextInit(matchers[cur_version], nmatch);
     if (context == nullptr)
       throw std::runtime_error("Could not initialize context.");
   }

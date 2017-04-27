@@ -64,6 +64,7 @@ struct Arguments {
   uint32_t rematch_session;
   uint32_t num_threads;
   uint32_t compile_test;
+  uint32_t nmatch = 1;
   std::vector<size_t> cores;
   bool reduce = {false};
   char paddings[7];
@@ -139,19 +140,21 @@ int main(int argc, const char* argv[])
       prefix = "rematch";
       if (args.rematch_session) {
 #ifdef WITH_SESSION
-        engine = std::make_unique<regexbench::REmatchAutomataEngineSession>();
+        engine = std::make_unique<regexbench::REmatchAutomataEngineSession>(
+            args.nmatch);
         engine->compile(regexbench::loadRules(args.rule_file),
                         args.num_threads);
 #endif
       } else if (endsWith(args.rule_file, ".nfa")) {
-        engine = std::make_unique<regexbench::REmatchAutomataEngine>();
+        engine =
+            std::make_unique<regexbench::REmatchAutomataEngine>(args.nmatch);
         engine->load(args.rule_file, args.num_threads);
       } else if (endsWith(args.rule_file, ".so")) {
         engine = std::make_unique<regexbench::REmatchSOEngine>();
         engine->load(args.rule_file, args.num_threads);
       } else {
-        engine =
-            std::make_unique<regexbench::REmatchAutomataEngine>(args.reduce);
+        engine = std::make_unique<regexbench::REmatchAutomataEngine>(
+            args.nmatch, args.reduce);
         engine->compile(regexbench::loadRules(args.rule_file),
                         args.num_threads);
       }
@@ -160,11 +163,12 @@ int main(int argc, const char* argv[])
     case EngineType::rematch2:
       prefix = "rematch2";
       if (endsWith(args.rule_file, ".nfa")) {
-        engine = std::make_unique<regexbench::REmatch2AutomataEngine>();
+        engine =
+            std::make_unique<regexbench::REmatch2AutomataEngine>(args.nmatch);
         engine->load(args.rule_file, args.num_threads);
       } else {
-        engine =
-            std::make_unique<regexbench::REmatch2AutomataEngine>(args.reduce);
+        engine = std::make_unique<regexbench::REmatch2AutomataEngine>(
+            args.nmatch, args.reduce);
         engine->compile(regexbench::loadRules(args.rule_file),
                         args.num_threads);
       }
@@ -409,6 +413,9 @@ Arguments parse_options(int argc, const char* argv[])
   optargs.add_options()(
       "update,u", po::value<std::string>(&args.update_file)->default_value(""),
       "Online update file");
+  optargs.add_options()("match_num,m",
+                        po::value<uint32_t>(&args.nmatch)->default_value(1),
+                        "Match number");
   po::options_description cliargs;
   cliargs.add(posargs).add(optargs);
   po::variables_map vm;
