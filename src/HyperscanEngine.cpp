@@ -12,7 +12,7 @@ static int onMatch(unsigned int id, unsigned long long, unsigned long long,
                    unsigned int, void* ctx)
 {
   match_handler_context& matchCtx = *static_cast<match_handler_context*>(ctx);
-  matchCtx.nmatches = 1;
+  matchCtx.nmatches++;
   matchCtx.id = id;
   return 0;
 }
@@ -154,11 +154,12 @@ size_t HyperscanEngine::match(const char* data, size_t len, size_t, size_t thr,
                               size_t* pId)
 {
   match_handler_context matchCtx;
+  matchCtx.nmatches = 0;
   hs_scan(db, data, static_cast<unsigned>(len), 0, scratches[thr], onMatch,
           &matchCtx);
   if (matchCtx.nmatches && pId)
     *pId = matchCtx.id;
-  return matchCtx.nmatches > 0;
+  return matchCtx.nmatches;
 }
 
 void HyperscanEngineStream::init(size_t nsessions_) { nsessions = nsessions_; }
