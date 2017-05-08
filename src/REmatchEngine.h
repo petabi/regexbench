@@ -96,6 +96,7 @@ private:
                                        // garbage collector to reap
                                        // outdated matchers
   std::vector<rematch_match_context_t*> contexts;
+  std::vector<rematch_scratch_t*> scratches;
   std::atomic_int version;
   std::vector<int> versions;
   bool reduce = false;

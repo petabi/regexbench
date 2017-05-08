@@ -177,6 +177,8 @@ REmatch2AutomataEngine::REmatch2AutomataEngine(uint32_t nm, bool red)
 }
 REmatch2AutomataEngine::~REmatch2AutomataEngine()
 {
+  for (auto scratch : scratches)
+    rematch_free_scratch(scratch);
   for (auto context : contexts)
     rematch2ContextFree(context);
   for (auto matcher : matchers)
@@ -209,6 +211,7 @@ void REmatch2AutomataEngine::compile(const std::vector<Rule>& rules,
   matchers[version + 1] = matcher;
   version++;
   numThreads = numThr;
+  scratches.resize(numThreads, nullptr);
   contexts.resize(numThreads, nullptr);
   versions.resize(numThreads, version - 1);
 }
@@ -273,6 +276,7 @@ void REmatch2AutomataEngine::load(const std::string& file, size_t numThr)
   if (matcher == nullptr)
     throw std::runtime_error("Could not load REmatch2 matcher.");
   numThreads = numThr;
+  scratches.resize(numThreads, nullptr);
   contexts.resize(numThreads, nullptr);
   versions.resize(numThreads, version - 1);
 }
@@ -290,12 +294,16 @@ void REmatch2AutomataEngine::load_updated(const std::string& file)
 size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,
                                      size_t thr, size_t* pId)
 {
+  auto scratch = scratches[thr];
   auto context = contexts[thr];
   auto& cur_version = versions[thr];
   if (__builtin_expect((version > cur_version), false)) {
     // std::cout << "Context update to be done" << std::endl;
     cur_version = version;
     //  if prev one is to be freed, then free it first
+    if (scratch)
+      rematch_free_scratch(scratch);
+    scratch = scratches[thr] = rematch_alloc_scratch(matchers[cur_version]);
     if (context)
       rematch2ContextFree(context);
     context = contexts[thr] =
@@ -304,7 +312,7 @@ size_t REmatch2AutomataEngine::match(const char* pkt, size_t len, size_t,
       throw std::runtime_error("Could not initialize context.");
   }
   auto cur_matcher = matchers[cur_version];
-  rematch_scan_block(cur_matcher, pkt, len, context);
+  rematch_scan_block(cur_matcher, pkt, len, context, scratch);
   size_t matched = context->num_matches;
   if (context->num_matches > 0)
     *pId = context->matchlist[0].fid;
