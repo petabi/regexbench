@@ -367,11 +367,10 @@ template <> void CS::processCmd(CS::cmd_singletest_option &opt)
 
   AuxInfo aux;
   aux.rules.emplace_back(regexbench::Rule(opt[id::re](), 1));
-  //	cout << "Rule           : " << opt[id::re]() << endl;
-  //	cout << "Data           : " << opt[id::data]() << endl;
+  // cout << "Rule           : " << opt[id::re]() << endl;
+  // cout << "Data           : " << opt[id::data]() << endl;
   aux.data = singleTestHexCheck(opt[id::data]());
-  // aux.data = opt[id::data](); // original
-  //	cout << "Convert Data   : " << aux.data.data() << endl;
+  // cout << "Convert Data   : " << aux.data.data() << endl;
   aux.nmatch = 1;
   aux.single = 1;
 
@@ -631,63 +630,34 @@ bool CS::parseCsvLine(const std::string &s, std::vector<std::string> &v) {
 std::string CS::singleTestHexCheck(const std::string& data)
 {
   size_t pos = 0;
-  std::string tmpStr, resultStr = data;
-  unsigned char convStr[3] = {
-      '\0',
-  };
+  std::string tmpStr, convCh, resultStr = data;
   while ((pos = resultStr.find("\\x", pos)) != std::string::npos) {
     tmpStr = resultStr.substr(pos + 2, 2);
-    if (!hexValidCheck(tmpStr)) {
-      // cout << "Not Hex       : "<< tmpStr << endl;
+    if (hexToCh(tmpStr, convCh)) {
+      resultStr.erase(pos, 4);
+      resultStr.insert(pos, convCh);
+    } else {
       pos += 2;
       continue;
     }
-    // cout << "Hex           : " << tmpStr << endl;
-    hexToStr(tmpStr.c_str(), convStr, tmpStr.length());
-    // cout << "Str           : " << convStr << endl;
-    resultStr.erase(pos, 4);
-    resultStr.insert(pos, std::string(reinterpret_cast<const char*>(convStr)));
-    pos += std::string(reinterpret_cast<const char*>(convStr)).length();
   }
   return resultStr;
 }
 
-bool CS::hexValidCheck(std::string& hex)
+bool CS::hexToCh(std::string& hex, std::string& conv)
 {
   const char* tmp = hex.c_str();
   for (int i = 0; i < 2; i++) {
-    // cout << "Ch           : " << tmp[i] << endl;
-    if ((tmp[i] < '0' || tmp[i] > '9') && (tmp[i] < 'a' || tmp[i] > 'f') &&
-        (tmp[i] < 'A' || tmp[i] > 'F')) {
+    if (!isxdigit(tmp[i])) {
       return false;
     }
   }
-  return true;
-}
-
-void CS::hexToStr(char const* hex, unsigned char* str, size_t size)
-{
-  size_t i = 0;
-
-  for (i = 0; i < size; i++) {
-    size_t j = 0;
-    unsigned char ch = 0;
-    char const* tmp = hex + (2 * i);
-
-    for (j = 0; j < 2; j++) {
-      if (*(tmp + j) >= '0' && *(tmp + j) <= '9') {
-        ch = static_cast<unsigned char>((ch << 4)) +
-             static_cast<unsigned char>((*(tmp + j)) - '0');
-      } else if (*(tmp + j) >= 'a' && *(tmp + j) <= 'f') {
-        ch = static_cast<unsigned char>((ch << 4)) +
-             static_cast<unsigned char>((*(hex + j)) - 'a' + 10);
-      } else if (*(tmp + j) >= 'A' && *(tmp + j) <= 'F') {
-        ch = static_cast<unsigned char>((ch << 4)) +
-             static_cast<unsigned char>((*(tmp + j)) - 'A' + 10);
-      } else {
-        break;
-      }
-    }
-    str[i] = ch;
+  try {
+    char data = static_cast<char>(std::stoi(hex, 0, 16));
+    conv = std::string(1, data);
+  } catch (const std::exception& e) {
+    cerr << "hex convert fail " << e.what() << endl;
+    return false;
   }
+  return true;
 }

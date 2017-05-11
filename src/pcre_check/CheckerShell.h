@@ -156,8 +156,7 @@ private:
   template <typename T> void processCmd(T &o);
   void processTestTable(cmd_show_table_test_option&);
   std::string singleTestHexCheck(const std::string& data);
-  bool hexValidCheck(std::string& hex);
-  void hexToStr(char const* hex, unsigned char* str, size_t size);
+  bool hexToCh(std::string& hex, std::string& conv);
   struct cmd_functor { // to be used by fusion::map for_each
     cmd_functor(CheckerShell &p) : sh(p) {}
     template <typename T> void operator()(T &t) const {
