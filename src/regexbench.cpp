@@ -1,5 +1,11 @@
 #include "config.h"
 
+#ifdef __FreeBSD__
+#include <pthread_np.h>
+#endif
+#ifdef __FreeBSD__
+#include <sys/cpuset.h>
+#endif
 #include <sys/resource.h>
 #include <sys/time.h>
 
@@ -192,6 +198,17 @@ int main(int argc, const char* argv[])
     // set up background jobs
     using BGJ = regexbench::BackgroundJobs;
     BGJ bgj(args.update_pipe, engine.get(), args.rule_file, args.compile_test);
+#ifdef CPU_SET
+    // set affinity to main thread itself
+    cpuset_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(args.cores[0], &cpuset);
+    if (pthread_setaffinity_np(pthread_self(), sizeof(cpuset_t), &cpuset) !=
+        0) {
+      std::cerr << "Setting affinty to main thread failed" << std::endl;
+      return -1;
+    }
+#endif
     bgj.start(); // launch background jobs (to actually run or not will be
                  // determined inside class instance)
 
