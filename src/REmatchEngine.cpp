@@ -18,9 +18,9 @@ const char NFA_FUNC_NAME[] = "run";
 const char NFA_NSTATES_NAME[] = "nstates";
 
 REmatchAutomataEngine::REmatchAutomataEngine(uint32_t nm, bool red)
-    : flow(nullptr), matcher(nullptr), txtbl(nullptr), nmatch(nm),
+    : flow(nullptr), matcher(nullptr), txtbl(nullptr),
       regmatchMem(std::make_unique<mregmatch_t[]>(nm)),
-      regmatch(regmatchMem.get()), reduce(red)
+      regmatch(regmatchMem.get()), nmatch(nm), reduce(red)
 {
 }
 

@@ -31,11 +31,11 @@ private:
 
 protected:
   mregex_t* txtbl;
-  const uint32_t nmatch;
   std::unique_ptr<mregmatch_t[]> regmatchMem;
   mregmatch_t* regmatch;
+  const uint32_t nmatch;
   bool reduce = false;
-  char __padding[7];
+  char __padding[3];
 };
 
 class REmatchSOEngine : public Engine {
@@ -91,14 +91,14 @@ public:
 private:
   void load_updated(const std::string& file); // for possible use
 
-  const uint32_t nmatch;
   std::map<int, rematch2_t*> matchers; // TODO: we need to implement
                                        // garbage collector to reap
                                        // outdated matchers
   std::vector<rematch_match_context_t*> contexts;
   std::vector<rematch_scratch_t*> scratches;
-  std::atomic_int version;
   std::vector<int> versions;
+  const uint32_t nmatch;
+  std::atomic_int version;
   bool reduce = false;
 
 protected:
