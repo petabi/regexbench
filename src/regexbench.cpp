@@ -16,6 +16,7 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
+#include "BackgroundJobs.h"
 #include "BoostEngine.h"
 #include "CPPEngine.h"
 #ifdef HAVE_HYPERSCAN
@@ -57,7 +58,7 @@ struct Arguments {
   std::string log_file;
   std::string pcap_file;
   std::string rule_file;
-  std::string update_file;
+  std::string update_pipe;
   EngineType engine;
   int32_t repeat;
   uint32_t pcre2_concat;
@@ -188,16 +189,11 @@ int main(int argc, const char* argv[])
               << std::endl
               << std::endl;
 
-    // do compile test here
-    auto compile_test_thr =
-        std::thread(&regexbench::compile_test_thread, engine.get(),
-                    args.rule_file, args.compile_test);
-    // launch online update thread (if specified)
-    std::thread update_thr;
-    if (!args.update_file.empty()) {
-      update_thr = std::thread(&regexbench::online_update_thread, engine.get(),
-                               args.rule_file, args.update_file);
-    }
+    // set up background jobs
+    using BGJ = regexbench::BackgroundJobs;
+    BGJ bgj(args.update_pipe, engine.get(), args.rule_file, args.compile_test);
+    bgj.start(); // launch background jobs (to actually run or not will be
+                 // determined inside class instance)
 
     std::string reportFields[]{"TotalMatches", "TotalMatchedPackets",
                                "UserTime",     "SystemTime",
@@ -276,11 +272,7 @@ int main(int argc, const char* argv[])
     std::ofstream outputFile(args.output_file, std::ios_base::trunc);
     outputFile << buf.str();
 
-    compile_test_thr.join();
-    if (!args.update_file.empty()) {
-      regexbench::signal_update_thread();
-      update_thr.join();
-    }
+    bgj.stop();
 
   } catch (const std::exception& e) {
     std::cerr << e.what() << std::endl;
@@ -404,8 +396,8 @@ Arguments parse_options(int argc, const char* argv[])
       "compile,t", po::value<uint32_t>(&args.compile_test)->default_value(0),
       "Compile test");
   optargs.add_options()(
-      "update,u", po::value<std::string>(&args.update_file)->default_value(""),
-      "Online update file");
+      "update,u", po::value<std::string>(&args.update_pipe)->default_value(""),
+      "Pipe for signaling online update");
   optargs.add_options()("match_num,m",
                         po::value<uint32_t>(&args.nmatch)->default_value(1),
                         "Match number");
@@ -424,6 +416,7 @@ Arguments parse_options(int argc, const char* argv[])
     std::cout << posargs << "\n" << optargs << "\n";
     std::exit(EXIT_SUCCESS);
   }
+
   if (engine == "boost")
     args.engine = EngineType::boost;
   else if (engine == "cpp")

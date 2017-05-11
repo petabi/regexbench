@@ -29,7 +29,7 @@ if (OS_IS_LINUX)
 endif()
 
 add_executable(regexbench
-  match.cpp PcapSource.cpp regexbench.cpp Rule.cpp Session.cpp)
+  match.cpp PcapSource.cpp regexbench.cpp Rule.cpp Session.cpp BackgroundJobs.cpp)
 target_link_libraries(regexbench
   engines ${Boost_LIBRARIES} ${PCAP_LIB} ${CMAKE_THREAD_LIBS_INIT})
 if (OS_IS_LINUX)
