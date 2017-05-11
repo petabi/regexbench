@@ -646,9 +646,8 @@ std::string CS::singleTestHexCheck(const std::string& data)
 
 bool CS::hexToCh(std::string& hex, std::string& conv)
 {
-  const char* tmp = hex.c_str();
-  for (int i = 0; i < 2; i++) {
-    if (!isxdigit(tmp[i])) {
+  for (auto d : hex) {
+    if (!isxdigit(d)) {
       return false;
     }
   }
