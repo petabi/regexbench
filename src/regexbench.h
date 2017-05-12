@@ -35,6 +35,7 @@ struct MatchMeta {
   size_t len;
 };
 
+int setAffinity(size_t core, const std::string& thrName = "");
 std::vector<MatchMeta> buildMatchMeta(const PcapSource&, size_t&);
 uint32_t getPLOffset(const std::string&);
 std::vector<Rule> loadRules(const std::string&);

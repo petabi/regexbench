@@ -100,6 +100,27 @@ uint32_t regexbench::getPLOffset(const std::string& packet)
   return offset;
 }
 
+#ifdef __linux__
+using cpuset_t = cpu_set_t;
+#endif
+int regexbench::setAffinity(size_t core, const std::string& thrName)
+{
+#ifdef CPU_SET
+  // set affinity to main thread itself
+  cpuset_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(core, &cpuset);
+  if (pthread_setaffinity_np(pthread_self(), sizeof(cpuset_t), &cpuset) != 0) {
+    if (!thrName.empty()) {
+      std::cerr << "Setting affinty to " << thrName << " thread failed"
+                << std::endl;
+    }
+    return -1;
+  }
+#endif
+  return 0;
+}
+
 std::vector<MatchMeta> regexbench::buildMatchMeta(const PcapSource& src,
                                                   size_t& nsessions)
 {
@@ -117,23 +138,12 @@ std::vector<MatchMeta> regexbench::buildMatchMeta(const PcapSource& src,
   return matcher_info;
 }
 
-#ifdef __linux__
-using cpuset_t = cpu_set_t;
-#endif
 void regexbench::matchThread(Engine* engine, const PcapSource* src, long repeat,
                              size_t core, size_t sel,
                              const std::vector<MatchMeta>* meta,
                              MatchResult* result, Logger* logger)
 {
-#ifdef CPU_SET
-  cpuset_t cpuset;
-  CPU_ZERO(&cpuset);
-  CPU_SET(core, &cpuset);
-  if (pthread_setaffinity_np(pthread_self(), sizeof(cpuset_t), &cpuset) != 0) {
-    std::cerr << "Setting affinty to a match thread failed" << std::endl;
-    return;
-  }
-#endif
+  setAffinity(core, "match");
 
 #ifdef RUSAGE_THREAD
   struct rusage begin, end;
@@ -185,16 +195,7 @@ std::vector<MatchResult> regexbench::match(Engine& engine,
   }
   auto mainCore = *coreIter++;
 
-#ifdef CPU_SET
-  // set affinity to main thread itself
-  cpuset_t cpuset;
-  CPU_ZERO(&cpuset);
-  CPU_SET(mainCore, &cpuset);
-  if (pthread_setaffinity_np(pthread_self(), sizeof(cpuset_t), &cpuset) != 0) {
-    std::cerr << "Setting affinty to a match thread failed" << std::endl;
-    return std::vector<MatchResult>();
-  }
-#endif
+  setAffinity(mainCore, "main");
 
   // logger setting
   std::unique_ptr<Logger> pLogger;
