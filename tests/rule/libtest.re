@@ -1,0 +1,10 @@
+/123\Q*\E456/
+/a{3,4}?/
+/aaa[[:alnum:]]/
+/abc\aabc/
+/aaa\x{0026}bbb/
+/abc.++/
+/abc?+c/
+/123\*zxc/
+/abc\d/
+/abc|def|xyz/

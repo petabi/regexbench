@@ -6,3 +6,4 @@ atf_test_program{name='t_metadata'}
 atf_test_program{name='t_option'}
 atf_test_program{name='t_re2'}
 atf_test_program{name='t_session'}
+atf_test_program{name='t_libtest'}

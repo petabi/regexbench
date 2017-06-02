@@ -10,11 +10,6 @@
 #include <memory>
 #include <sstream>
 #include <string>
-#include <thread>
-
-#include <boost/program_options.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 
 #include "BackgroundJobs.h"
 #include "BoostEngine.h"
@@ -36,46 +31,6 @@
 #include "Rule.h"
 #include "regexbench.h"
 
-using boost::property_tree::ptree;
-using boost::property_tree::read_json;
-using boost::property_tree::write_json;
-
-namespace po = boost::program_options;
-
-enum class EngineType : uint64_t {
-  boost,
-  std_regex,
-  hyperscan,
-  pcre2,
-  pcre2_jit,
-  re2,
-  rematch,
-  rematch2
-};
-
-struct Arguments {
-  std::string output_file;
-  std::string log_file;
-  std::string pcap_file;
-  std::string rule_file;
-  std::string update_pipe;
-  EngineType engine;
-  int32_t repeat;
-  uint32_t pcre2_concat;
-  uint32_t rematch_session;
-  uint32_t num_threads;
-  uint32_t compile_test;
-  uint32_t nmatch = 0;
-  std::vector<size_t> cores;
-  bool reduce = {false};
-#ifdef USE_TURBO
-  bool turbo = {false};
-  char paddings[6];
-#else
-  char paddings[7];
-#endif
-};
-
 template <typename Derived, typename Base, typename Del>
 std::unique_ptr<Derived, Del>
 static_unique_ptr_cast(std::unique_ptr<Base, Del>&& p)
@@ -85,13 +40,37 @@ static_unique_ptr_cast(std::unique_ptr<Base, Del>&& p)
 }
 
 static bool endsWith(const std::string&, const char*);
-static Arguments parse_options(int argc, const char* argv[]);
 
-int main(int argc, const char* argv[])
+Arguments regexbench::init(const std::string& rule_file,
+                           const std::string& pcap_file,
+                           const std::string& output_file,
+                           const EngineType& engine, uint32_t nthreads,
+                           const std::string& affinity, int32_t repeat)
+{
+  Arguments args;
+
+  args.rule_file = rule_file;
+  args.pcap_file = pcap_file;
+  args.output_file = output_file;
+  args.engine = engine;
+  args.repeat = repeat;
+  args.pcre2_concat = 0;
+  args.rematch_session = 0;
+  args.compile_test = 0;
+  args.num_threads = nthreads;
+  args.update_pipe = "";
+  args.log_file = "";
+  args.quiet = true;
+  args.nmatch = 0;
+  args.cores = setup_affinity(nthreads, affinity);
+
+  return args;
+}
+
+int regexbench::exec(Arguments &args)
 {
   try {
     std::string prefix;
-    auto args = parse_options(argc, argv);
     std::unique_ptr<regexbench::Engine> engine;
     size_t nsessions = 0;
     regexbench::PcapSource pcap(args.pcap_file);
@@ -187,17 +166,7 @@ int main(int argc, const char* argv[])
 #endif
     }
     getrusage(RUSAGE_SELF, &compileEnd);
-    struct timeval compileUdiff, compileSdiff;
-    timersub(&(compileEnd.ru_utime), &(compileBegin.ru_utime), &compileUdiff);
-    timersub(&(compileEnd.ru_stime), &(compileBegin.ru_stime), &compileSdiff);
-    auto compileTime = (compileUdiff.tv_sec + compileSdiff.tv_sec +
-                        (compileUdiff.tv_usec + compileSdiff.tv_usec) * 1e-6);
-    std::cout << std::endl;
-    std::cout << "Compile time : " << compileTime << std::endl << std::endl;
-    std::cout << "Pcap TotalBytes : " << pcap.getNumberOfBytes() << std::endl;
-    std::cout << "Pcap TotalPackets : " << pcap.getNumberOfPackets()
-              << std::endl
-              << std::endl;
+    args.compile_time = compileReport(compileBegin, compileEnd, pcap, args.quiet);
 
     // set up background jobs
     using BGJ = regexbench::BackgroundJobs;
@@ -206,85 +175,12 @@ int main(int argc, const char* argv[])
     bgj.start(); // launch background jobs (to actually run or not will be
                  // determined inside class instance)
 
-    std::string reportFields[]{"TotalMatches", "TotalMatchedPackets",
-                               "UserTime",     "SystemTime",
-                               "TotalTime",    "Mbps",
-                               "Mpps",         "MaximumMemoryUsed(MB)"};
-
     std::vector<regexbench::MatchResult> results = match(
         *engine, pcap, args.repeat, args.cores, match_info, args.log_file);
 
-    auto coreIter = args.cores.begin();
-    coreIter++; // get rid of main thread
-    boost::property_tree::ptree pt;
-    prefix = prefix + ".";
-    pt.put(prefix + "Logging", args.log_file.empty() ? "Off" : "On");
-    pt.put(prefix + "Repeat", args.repeat);
-    std::string rulePrefix = prefix + "Rule.";
-    pt.put(rulePrefix + "File", args.rule_file);
-    pt.put(rulePrefix + "CompileTime", compileTime);
-    if (args.reduce && (args.engine == EngineType::rematch ||
-                        args.engine == EngineType::rematch2))
-      pt.put(rulePrefix + "Reduce", "On");
-    std::string pcapPrefix = prefix + "Pcap.";
-    pt.put(pcapPrefix + "File", args.pcap_file);
-    pt.put(pcapPrefix + "TotalBytes", pcap.getNumberOfBytes());
-    pt.put(pcapPrefix + "TotalPackets", pcap.getNumberOfPackets());
-    pt.put(prefix + "NumThreads", args.num_threads);
-    size_t coreInd = 0;
-    std::string threadsPrefix = prefix + "Threads.";
-    for (const auto& result : results) {
-      std::stringstream ss;
-      ss << "Thread" << coreInd++ << ".";
-      std::string corePrefix = threadsPrefix + ss.str();
-      pt.put(corePrefix + "Core", *coreIter++);
-      pt.put(corePrefix + "TotalMatches", result.nmatches);
-      pt.put(corePrefix + "TotalMatchedPackets", result.nmatched_pkts);
-      ss.str("");
-      auto t = result.udiff.tv_sec + result.udiff.tv_usec * 1e-6;
-      ss << t;
-      pt.put(corePrefix + "UserTime", ss.str());
-      ss.str("");
-      t = result.sdiff.tv_sec + result.sdiff.tv_usec * 1e-6;
-      ss << t;
-      pt.put(corePrefix + "SystemTime", ss.str());
-      ss.str("");
-      struct timeval total;
-      timeradd(&result.udiff, &result.sdiff, &total);
-      t = total.tv_sec + total.tv_usec * 1e-6;
-      ss << t;
-      pt.put(corePrefix + "TotalTime", ss.str());
-      ss.str("");
-      ss << std::fixed << std::setprecision(6)
-         << (static_cast<double>(pcap.getNumberOfBytes() *
-                                 static_cast<unsigned long>(args.repeat)) /
-             (total.tv_sec + total.tv_usec * 1e-6) / 1000000 * 8);
-      pt.put(corePrefix + "Mbps", ss.str());
-
-      ss.str("");
-      ss << std::fixed << std::setprecision(6)
-         << (static_cast<double>(pcap.getNumberOfPackets() *
-                                 static_cast<unsigned long>(args.repeat)) /
-             (total.tv_sec + total.tv_usec * 1e-6) / 1000000);
-      pt.put(corePrefix + "Mpps", ss.str());
-      struct rusage stat;
-      getrusage(RUSAGE_SELF, &stat);
-      pt.put(corePrefix + "MaximumMemoryUsed(MB)", stat.ru_maxrss / 1000);
-
-      for (const auto& it : reportFields) {
-        std::cout << it << " : " << pt.get<std::string>(corePrefix + it)
-                  << "\n";
-      }
-      std::cout << std::endl;
-    }
-
-    std::ostringstream buf;
-    write_json(buf, pt, true);
-    std::ofstream outputFile(args.output_file, std::ios_base::trunc);
-    outputFile << buf.str();
+    report(prefix, pcap, args, results);
 
     bgj.stop();
-
   } catch (const std::exception& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
@@ -300,7 +196,7 @@ bool endsWith(const std::string& obj, const char* end)
   return false;
 }
 
-static std::vector<size_t> setup_affinity(size_t num, const std::string& arg)
+std::vector<size_t> setup_affinity(size_t num, const std::string& arg)
 {
   auto ncpus = std::thread::hardware_concurrency();
 
@@ -354,166 +250,4 @@ static std::vector<size_t> setup_affinity(size_t num, const std::string& arg)
           static_cast<size_t>((i > maxCore) ? maxCore : i);
   }
   return cores;
-}
-
-Arguments parse_options(int argc, const char* argv[])
-{
-  Arguments args;
-  std::string engine;
-  std::string prefix;
-  std::string affinity;
-
-  po::options_description posargs;
-  posargs.add_options()("rule_file", po::value<std::string>(&args.rule_file),
-                        "Rule (regular expression) file name");
-  posargs.add_options()("pcap_file", po::value<std::string>(&args.pcap_file),
-                        "pcap file name");
-  po::positional_options_description positions;
-  positions.add("rule_file", 1).add("pcap_file", 1);
-
-  po::options_description optargs("Options");
-  optargs.add_options()("help,h", "Print usage information.");
-  optargs.add_options()(
-      "engine,e", po::value<std::string>(&engine)->default_value("hyperscan"),
-      "Matching engine to run.");
-  optargs.add_options()("repeat,r",
-                        po::value<int32_t>(&args.repeat)->default_value(1),
-                        "Repeat pcap multiple times.");
-  optargs.add_options()(
-      "concat,c", po::value<uint32_t>(&args.pcre2_concat)->default_value(0),
-      "Concatenate PCRE2 rules.");
-  optargs.add_options()(
-      "session,s", po::value<uint32_t>(&args.rematch_session)->default_value(0),
-      "Rematch session mode.");
-  optargs.add_options()("prefix,p",
-                        po::value<std::string>(&prefix)->default_value(""),
-                        "Prefix to output json file name");
-  optargs.add_options()(
-      "output,o", po::value<std::string>(&args.output_file)->default_value(""),
-      "Output JSON file.");
-  optargs.add_options()(
-      "logfile,l", po::value<std::string>(&args.log_file)->default_value(""),
-      "Log file.");
-  optargs.add_options()(
-      "threads,n", po::value<uint32_t>(&args.num_threads)->default_value(1),
-      "Number of threads.");
-  optargs.add_options()("affinity,a",
-                        po::value<std::string>(&affinity)->default_value("0"),
-                        "Core affinity assignment (starting from main thread)");
-  optargs.add_options()("reduce,R",
-                        po::value<bool>(&args.reduce)->default_value(false),
-                        "Use REduce with REmatch, default is false");
-  optargs.add_options()(
-      "compile,t", po::value<uint32_t>(&args.compile_test)->default_value(0),
-      "Compile test");
-  optargs.add_options()(
-      "update,u", po::value<std::string>(&args.update_pipe)->default_value(""),
-      "Pipe for signaling online update");
-#ifdef USE_TURBO
-  optargs.add_options()("turbo", "Turbo processing mode for rematch2");
-#endif
-  optargs.add_options()("match_num,m",
-                        po::value<uint32_t>(&args.nmatch)->default_value(0),
-                        "Match number");
-  po::options_description cliargs;
-  cliargs.add(posargs).add(optargs);
-  po::variables_map vm;
-  po::store(po::command_line_parser(argc, argv)
-                .options(cliargs)
-                .positional(positions)
-                .run(),
-            vm);
-  po::notify(vm);
-
-  if (vm.count("help")) {
-    std::cout << "Usage: regexbench <rule_file> <pcap_file>" << std::endl;
-    std::cout << posargs << "\n" << optargs << "\n";
-    std::exit(EXIT_SUCCESS);
-  }
-
-#ifdef USE_TURBO
-  if (vm.count("turbo"))
-    args.turbo = true;
-#endif
-
-  if (engine == "boost")
-    args.engine = EngineType::boost;
-  else if (engine == "cpp")
-    args.engine = EngineType::std_regex;
-#ifdef HAVE_HYPERSCAN
-  else if (engine == "hyperscan")
-    args.engine = EngineType::hyperscan;
-#endif
-#ifdef HAVE_PCRE2
-  else if (engine == "pcre2")
-    args.engine = EngineType::pcre2;
-  else if (engine == "pcre2jit")
-    args.engine = EngineType::pcre2_jit;
-#endif
-#ifdef HAVE_RE2
-  else if (engine == "re2")
-    args.engine = EngineType::re2;
-#endif
-#ifdef HAVE_REMATCH
-  else if (engine == "rematch")
-    args.engine = EngineType::rematch;
-  else if (engine == "rematch2")
-    args.engine = EngineType::rematch2;
-#endif
-  else {
-    std::cerr << "unknown engine: " << engine << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  if (args.repeat <= 0) {
-    std::cerr << "invalid repeat value: " << args.repeat << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  if (args.num_threads < 1) {
-    std::cerr << "invalid number of threads: " << args.num_threads << std::endl;
-    std::cerr << " (should be >= 1 .. overriding it to 1" << std::endl;
-    args.num_threads = 1;
-  }
-  std::cout << "number of threads : " << args.num_threads << std::endl;
-  args.cores = setup_affinity(args.num_threads, affinity);
-  std::cout << "affinity setup is ..." << std::endl;
-  for (auto core : args.cores)
-    std::cout << " " << core;
-  std::cout << std::endl;
-
-#ifndef WITH_SESSION
-  if ((engine == "rematch" || engine == "rematch2") && args.rematch_session) {
-    std::cerr << "not supporting session mode for now" << std::endl;
-    args.rematch_session = 0;
-  }
-#endif
-
-  if (args.output_file.empty()) {
-    std::string name = prefix;
-    if (!name.empty())
-      name += "-";
-    name += engine + "-";
-    auto basename = args.rule_file;
-    auto pos = basename.find_last_of("/\\");
-    basename = basename.substr((pos == std::string::npos) ? 0 : pos + 1);
-    name += basename + "-"; // rule
-    basename = args.pcap_file;
-    pos = basename.find_last_of("/\\");
-    basename = basename.substr((pos == std::string::npos) ? 0 : pos + 1);
-    name += basename + "-";                               // pcap
-    name += "N" + std::to_string(args.num_threads) + "-"; // num threads
-    name += "R" + std::to_string(args.repeat) + ".json";  // repeat
-
-    args.output_file = name;
-    std::cout << "Output file name is " << args.output_file << std::endl;
-  }
-
-  if (!vm.count("rule_file")) {
-    std::cerr << "error: no rule file" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  if (!vm.count("pcap_file")) {
-    std::cerr << "error: no pcap file" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  return args;
 }
