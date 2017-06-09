@@ -35,6 +35,10 @@
 
 using namespace regexbench;
 
+#ifndef RUSAGE_THREAD
+#define RUSAGE_THREAD RUSAGE_SELF
+#endif
+
 uint32_t regexbench::getPLOffset(const std::string& packet)
 {
   uint16_t offset = 0;
@@ -146,10 +150,8 @@ void regexbench::matchThread(Engine* engine, const PcapSource* src, long repeat,
 {
   setAffinity(core, "match");
 
-#ifdef RUSAGE_THREAD
   struct rusage begin, end;
   getrusage(RUSAGE_THREAD, &begin);
-#endif
   for (long i = 0; i < repeat; ++i) {
     for (size_t j = 0; j < src->getNumberOfPackets(); j++) {
       size_t matchId;
@@ -167,11 +169,9 @@ void regexbench::matchThread(Engine* engine, const PcapSource* src, long repeat,
       result->cur.npkts++;
     }
   }
-#ifdef RUSAGE_THREAD
   getrusage(RUSAGE_THREAD, &end);
   timersub(&(end.ru_utime), &(begin.ru_utime), &result->udiff);
   timersub(&(end.ru_stime), &(begin.ru_stime), &result->sdiff);
-#endif
   result->stop.store(true);
 }
 
