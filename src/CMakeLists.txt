@@ -1,3 +1,5 @@
+include(CheckIncludeFiles)
+
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${PCAP_INCLUDE_DIR})
 
@@ -46,7 +48,10 @@ if(RE2_LIB)
   target_link_libraries(regexbench ${RE2_LIB})
 endif()
 
+CHECK_INCLUDE_FILES(pius/auto-opt.h HAVE_AUTO_OPT)
+if (HAVE_AUTO_OPT)
 add_subdirectory(pcre_check)
+endif()
 
 set(REBENCH_HDR_SRCS regexbench.h Engine.h PcapSource.h Rule.h Logger.h)
 install(FILES ${REBENCH_HDR_SRCS} DESTINATION include/rebench)
