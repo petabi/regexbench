@@ -11,15 +11,6 @@ if (REMATCHCOMP_LIB AND HYPERSCAN_LIB AND PCRE2_LIB)
 endif()
 
 if (CONTINUE)
-  find_package(Lua) # TODO revisit!!!
-  if (Lua_FOUND)
-    include_directories(SYSTEM ${LUA_INCLUDE_DIR})
-  else()
-    set(CONTINUE FALSE)
-  endif()
-endif()
-
-if (CONTINUE)
   find_package(PkgConfig)
   pkg_check_modules(JSONCPP jsoncpp)
   if (JSONCPP_FOUND)
