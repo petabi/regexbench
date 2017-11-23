@@ -2,7 +2,7 @@
 
 #include "../src/Session.h"
 #include "../src/regexbench.h"
-
+asdfasdfasfasdf
 using namespace regexbench;
 
 ATF_TEST_CASE_WITHOUT_HEAD(metadata_create);
